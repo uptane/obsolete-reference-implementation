@@ -44,6 +44,8 @@ from six.moves import xmlrpc_server
 from six.moves import range
 import socket # for socket.error, to catch listening failures from six's xmlrpc server
 
+import atexit # for the deleting temporary files after exit()
+
 # Import a CAN communications module for partial-verification Secondaries
 import ctypes
 libuptane_lib = None # will be loaded later if we are communicating via CAN
@@ -85,6 +87,10 @@ ecu_key = None
 director_proxy = None
 listener_thread = None
 most_recent_signed_vehicle_manifest = None
+
+
+# Delete temporary files after demo exit().
+atexit.register(delete_temp_files, "primary")
 
 
 def clean_slate(

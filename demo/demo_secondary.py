@@ -45,6 +45,11 @@ import canonicaljson
 
 from six.moves import xmlrpc_client
 
+import atexit # for the deleting temporary files after exit()
+
+# Delete temporary files after demo exit().
+atexit.register(delete_temp_files, "secondary")
+
 # Globals
 CLIENT_DIRECTORY_PREFIX = 'temp_secondary' # name for this secondary's directory
 client_directory = None

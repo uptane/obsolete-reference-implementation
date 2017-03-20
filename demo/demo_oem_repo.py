@@ -214,6 +214,8 @@ def host():
 
   # Kill server process after calling exit().
   atexit.register(kill_server)
+  # Delete temporary directories after demo exit().
+  atexit.register(delete_temp_files, "directory")
 
   # Wait / allow any exceptions to kill the server.
   #try:
