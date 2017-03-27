@@ -104,3 +104,32 @@ def get_random_string(length):
       random.choice(string.ascii_uppercase + string.ascii_lowercase +
       string.digits) for i in range(length))
 
+
+def delete_temp_files(rm_type):
+  """
+  Function deletes temporary files after running demo.
+  """
+  if rm_type == "primary" or rm_type == "secondary":
+    # Remove temporary files in demo directory.
+    for subdir, dirs, files in os.walk(DEMO_DIR):
+      for file in files:
+        substring = ".json_" + file_type
+        if substring in file:
+          file_to_remove = DEMO_DIR + "/" + file
+          os.remove(file_to_remove)
+
+    # Remove temporary files in current directory.
+    for subdir, dirs, files in os.walk(uptane.WORKING_DIR):
+      for file in files:
+        substring = ".json_" + file_type
+        if substring in file:
+          file_to_remove = uptane.WORKING_DIR + "/" + file
+          os.remove(file_to_remove)
+
+  # Remove temporary directories.
+  if rm_type == "dir" or rm_type == "directory":
+    dir_to_remove = uptane.WORKING_DIR + "/director"
+    os.rmdir(dir_to_remove)
+    dir_to_remove = uptane.WORKING_DIR + "/mainrepo"
+    os.rmdir(dir_to_remove)
+
