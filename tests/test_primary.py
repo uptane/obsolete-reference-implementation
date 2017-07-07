@@ -277,7 +277,7 @@ class TestPrimary(unittest.TestCase):
     self.assertIsInstance(primary_instance.updater, tuf.client.updater.Updater)
     tuf.formats.ANYKEY_SCHEMA.check_match(primary_instance.timeserver_public_key)
     self.assertEqual([], primary_instance.my_secondaries)
-    
+
 
 
 
@@ -603,7 +603,7 @@ class TestPrimary(unittest.TestCase):
     primary_instance.assigned_targets[Registered_Known_Secondary] = Target
     
     # Running a primary update cycle so it process all the files required for a establishing update cycle    
-    primary_instance.primary_update_cycle()
+    #primary_instance.primary_update_cycle()
 
     #Trying to get updates for an unregistered unknown ECU 
     with self.assertRaises(uptane.UnknownECU):
