@@ -50,6 +50,10 @@ TEST_IMAGE_REPO_ROOT_FNAME = os.path.join(
 #TEST_PINNING_FNAME = os.path.join(TEST_DATA_DIR, 'pinned.json')
 TEST_PINNING_TEMPLATE_FNAME = os.path.join(TEST_DATA_DIR, "pinned_template.json")
 TEMP_CLIENT_DIR = os.path.join(TEST_DATA_DIR, 'temp_test_primary')
+#Source to copy all the local metadata to the TEMP_CLIENT_DIR
+SOURCE_FOR_LOCAL_METADATA = os.path.join(uptane.WORKING_DIR, 'samples', 'metadata_samples_long_expiry', 'update_to_one_ecu', 'full_metadata_archive')
+#Source to copy all the target files to TEMP_CLIENT_DIR
+SOURCE_FOR_LOCAL_TARGETS = os.path.join(uptane.WORKING_DIR,'demo', "images")
 
 # I'll initialize this in one of the early tests, and use this for the simple
 # non-damaging tests so as to avoid creating objects all over again.
@@ -94,7 +98,7 @@ def setUpModule():
   global key_timeserver_pri
   global clock
 
-  destroy_temp_dir()
+  
 
   # Load the private key for this Primary ECU.
   key_pub = demo.import_public_key('primary')
@@ -181,9 +185,24 @@ class TestPrimary(unittest.TestCase):
     # Set up a client directory first.
     uptane.common.create_directory_structure_for_client(
         TEMP_CLIENT_DIR,
-        TEST_PINNING_FNAME,
+        create_primary_pinning_file(),
         {'imagerepo': TEST_IMAGE_REPO_ROOT_FNAME,
         'director': TEST_DIRECTOR_ROOT_FNAME})
+
+    for repository in ["director", "imagerepo"]:
+    	print(os.path.join(
+    		SOURCE_FOR_LOCAL_METADATA,repository))
+    	print()
+    	shutil.copytree(
+    		os.path.join(SOURCE_FOR_LOCAL_METADATA,repository), 
+    		os.path.join(TEMP_CLIENT_DIR,repository))
+
+    shutil.copytree(
+    	SOURCE_FOR_LOCAL_TARGETS, 
+    	os.path.join(TEMP_CLIENT_DIR,'director','targets'))
+
+
+
 
 
     # TODO: Test with invalid pinning file
@@ -648,6 +667,8 @@ class TestPrimary(unittest.TestCase):
 
     #Trying to get updates for a registered secondary that is listed by targets for updates
     self.assertTrue(primary_instance.update_exists_for_ecu(Registered_Known_Secondary))
+
+    destroy_temp_dir()
 
       
 # Run unit test.
