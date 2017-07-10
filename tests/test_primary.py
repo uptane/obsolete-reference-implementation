@@ -154,8 +154,6 @@ def create_primary_pinning_file():
   with open(fname_to_create, 'wb') as fobj:
     fobj.write(canonicaljson.encode_canonical_json(pinnings))
 
-  print(fname_to_create)
-
   return fname_to_create
 
 
@@ -187,9 +185,6 @@ class TestPrimary(unittest.TestCase):
         'director': TEST_DIRECTOR_ROOT_FNAME})
 
     for repository in ["director", "imagerepo"]:
-    	print(os.path.join(
-    		SOURCE_FOR_LOCAL_METADATA,repository))
-    	print()
     	shutil.copytree(
     		os.path.join(SOURCE_FOR_LOCAL_METADATA,repository), 
     		os.path.join(TEMP_CLIENT_DIR,repository))
