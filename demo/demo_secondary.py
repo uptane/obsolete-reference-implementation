@@ -50,6 +50,8 @@ CLIENT_DIRECTORY_PREFIX = 'temp_secondary' # name for this secondary's directory
 client_directory = None
 _vin = '111'
 _ecu_serial = '22222'
+_hardware_id = "Secondary Potato 101"
+_release_counter = 0
 _primary_host = demo.PRIMARY_SERVER_HOST
 _primary_port = demo.PRIMARY_SERVER_DEFAULT_PORT
 firmware_filename = 'secondary_firmware.txt'
@@ -138,6 +140,8 @@ def clean_slate(
       director_repo_name=demo.DIRECTOR_REPO_NAME,
       vin=_vin,
       ecu_serial=_ecu_serial,
+      hardware_id = _hardware_id,
+      release_counter = _release_counter,
       ecu_key=ecu_key,
       time=clock,
       firmware_fileinfo=factory_firmware_fileinfo,
