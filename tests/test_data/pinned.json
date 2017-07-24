@@ -1,1 +1,0 @@
-{"delegations":[{"paths":["*"],"repositories":["imagerepo","director"]}],"repositories":{"director":{"mirrors":["file:////home/shikhar/Desktop/uptane/tests/test_data/temp_test_primary/director"]},"imagerepo":{"mirrors":["file:////home/shikhar/Desktop/uptane/tests/test_data/temp_test_primary/imagerepo"]}}}
