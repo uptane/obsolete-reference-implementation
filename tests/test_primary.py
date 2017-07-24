@@ -65,6 +65,8 @@ primary_instance = None
 nonce = 5
 vin = '000'
 primary_ecu_serial = '00000'
+primary_hardware_id = "Potato101"
+primary_release_counter = 1
 
 # Initialize these in setUpModule below.
 primary_ecu_key = None
@@ -213,6 +215,8 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=5,  # INVALID
           ecu_serial=primary_ecu_serial,
+          hardware_id = primary_hardware_id,
+          release_counter = primary_release_counter,
           primary_key=primary_ecu_key,
           time=clock,
           timeserver_public_key=key_timeserver_pub,
@@ -226,6 +230,8 @@ class TestPrimary(unittest.TestCase):
           vin=vin,
           ecu_serial=500, # INVALID
           primary_key=primary_ecu_key,
+          hardware_id = primary_hardware_id,
+          release_counter = primary_release_counter,
           time=clock,
           timeserver_public_key=key_timeserver_pub,
           my_secondaries=[])
@@ -237,6 +243,8 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=vin,
           ecu_serial=primary_ecu_serial,
+          hardware_id = primary_hardware_id,
+          release_counter = primary_release_counter,
           primary_key={''}, # INVALID
           time=clock,
           timeserver_public_key=key_timeserver_pub,
@@ -249,6 +257,8 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=vin,
           ecu_serial=primary_ecu_serial,
+          hardware_id = primary_hardware_id,
+          release_counter = primary_release_counter,
           primary_key=primary_ecu_key,
           time='potato', # INVALID
           timeserver_public_key=key_timeserver_pub,
@@ -261,6 +271,8 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=5, #INVALID
           vin=vin,
           ecu_serial=primary_ecu_serial,
+          hardware_id = primary_hardware_id,
+          release_counter = primary_release_counter,
           primary_key=primary_ecu_key, time=clock,
           timeserver_public_key = key_timeserver_pub,
           my_secondaries=[])
@@ -272,6 +284,8 @@ class TestPrimary(unittest.TestCase):
           director_repo_name= "invalid", #INVALID
           vin=vin,
           ecu_serial=primary_ecu_serial,
+          hardware_id = primary_hardware_id,
+          release_counter = primary_release_counter,
           primary_key=primary_ecu_key, time=clock,
           timeserver_public_key = key_timeserver_pub,
           my_secondaries=[])
@@ -284,6 +298,8 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=vin,
           ecu_serial=primary_ecu_serial,
+          hardware_id = primary_hardware_id,
+          release_counter = primary_release_counter,
           primary_key=primary_ecu_key,
           time=clock,
           timeserver_public_key=clock, # INVALID
@@ -302,6 +318,8 @@ class TestPrimary(unittest.TestCase):
         director_repo_name=demo.DIRECTOR_REPO_NAME,
         vin=vin,
         ecu_serial=primary_ecu_serial,
+        hardware_id = primary_hardware_id,
+        release_counter = primary_release_counter,
         primary_key=primary_ecu_key,
         time=clock,
         timeserver_public_key=key_timeserver_pub)
@@ -349,6 +367,7 @@ class TestPrimary(unittest.TestCase):
     self.assertEqual([], primary_instance.nonces_to_send)
     self.assertEqual([], primary_instance.nonces_sent)
 
+    """
     sample_ecu_manifest = {
         "signatures": [{
           "method": "ed25519",
@@ -363,6 +382,30 @@ class TestPrimary(unittest.TestCase):
           "previous_timeserver_time": "2016-10-14T16:06:03Z",
           "ecu_serial": "ecu11111",
           "attacks_detected": ""}}
+    """
+
+    sample_ecu_manifest = {
+    	'signatures': [{
+    	'keyid': '49309f114b857e4b29bfbff1c1c75df59f154fbc45539b2eb30c8a867843b2cb',
+    	'method': 'ed25519',
+      'sig': '52d19725155ccdbcabb37d016508ec0f5adcc0c16f24f1f16d6e1f71396991c4aa28a737778e3231d596cfdffc79b9e5212c8ad4bd8cd02aff7f41e803d94d0e'}],
+ 			'signed': {
+ 						'attacks_detected': '',
+            'ecu_serial': 'ecu11111',
+            'hardware_id': 'SecondaryPotato101',
+            'installed_image': {
+            	'fileinfo': 
+            		{
+            			'hashes': {
+            				'sha256': 
+            					'6b9f987226610bfed08b824c93bf8b2f59521fce9a2adef80c495f363c1c9c44',
+                    'sha512': '706c283972c5ae69864b199e1cdd9b4b8babc14f5a454d0fd4d3b35396a04ca0b40af731671b74020a738b5108a78deb032332c36d6ae9f31fae2f8a70f7e1ce'},
+                 'length': 37},
+                                'filepath': '/secondary_firmware.txt'},
+            'previous_timeserver_time': '2017-07-24T16:22:51Z',
+            'release_counter': 1,
+            'timeserver_time': '2017-07-24T16:22:51Z'}}
+
 
     # Try using the wrong vin.
     with self.assertRaises(uptane.Error):
