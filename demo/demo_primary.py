@@ -132,7 +132,7 @@ def clean_slate(
 
   # Load the private key for this Primary ECU.
   load_or_generate_key(use_new_keys)
-  
+
   atexit.register(clean_up) # To delete the temp pinned file and folder after
   # the script ends
 
