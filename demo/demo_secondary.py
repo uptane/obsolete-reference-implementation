@@ -34,6 +34,7 @@ from uptane import GREEN, RED, YELLOW, ENDCOLORS
 from demo.uptane_banners import *
 import tuf.keys
 import tuf.repository_tool as rt
+import atexit
 #import tuf.client.updater
 
 import os # For paths and makedirs
@@ -44,12 +45,16 @@ import json # for customizing the Secondary's pinnings file.
 import canonicaljson
 
 from six.moves import xmlrpc_client
+from pprint import pprint
 
 # Globals
 CLIENT_DIRECTORY_PREFIX = 'temp_secondary' # name for this secondary's directory
-client_directory = None
+CLIENT_DIRECTORY = None
+TEMP_PINNED_FILE = None
 _vin = '111'
-_ecu_serial = '22222'
+_ecu_serial = 'ecu11111'
+_hardware_id = 'SecondaryInfotainment111'
+_release_counter = 0
 _primary_host = demo.PRIMARY_SERVER_HOST
 _primary_port = demo.PRIMARY_SERVER_DEFAULT_PORT
 firmware_filename = 'secondary_firmware.txt'
@@ -78,7 +83,7 @@ def clean_slate(
   global _primary_host
   global _primary_port
   global nonce
-  global client_directory
+  global CLIENT_DIRECTORY
   global attacks_detected
 
   _vin = vin
@@ -90,7 +95,7 @@ def clean_slate(
   if primary_port is not None:
     _primary_port = primary_port
 
-  client_directory = os.path.join(
+  CLIENT_DIRECTORY = os.path.join(
       uptane.WORKING_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
 
   # Load the public timeserver key.
@@ -113,20 +118,20 @@ def clean_slate(
   clock = clock.isoformat() + 'Z'
   tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(clock)
 
-
-
+  atexit.register(clean_up) # To delete the temp pinned file and folder after
+  # the script ends
 
   # Create directory structure for the client and copy the root files from the
   # repositories.
   uptane.common.create_directory_structure_for_client(
-      client_directory, create_secondary_pinning_file(),
+      CLIENT_DIRECTORY, create_secondary_pinning_file(),
       {demo.IMAGE_REPO_NAME: demo.IMAGE_REPO_ROOT_FNAME,
       demo.DIRECTOR_REPO_NAME: os.path.join(demo.DIRECTOR_REPO_DIR, vin,
       'metadata', 'root' + demo.METADATA_EXTENSION)})
 
   # Configure tuf with the client's metadata directories (where it stores the
   # metadata it has collected from each repository, in subdirectories).
-  tuf.conf.repository_directory = client_directory # This setting should probably be called client_directory instead, post-TAP4.
+  tuf.conf.repository_directory = CLIENT_DIRECTORY # This setting should probably be called CLIENT_DIRECTORY instead, post-TAP4.
 
 
 
@@ -134,13 +139,15 @@ def clean_slate(
   # This also generates a nonce to use in the next time query, sets the initial
   # firmware fileinfo, etc.
   secondary_ecu = secondary.Secondary(
-      full_client_dir=client_directory,
+      full_client_dir=CLIENT_DIRECTORY,
       director_repo_name=demo.DIRECTOR_REPO_NAME,
       vin=_vin,
       ecu_serial=_ecu_serial,
       ecu_key=ecu_key,
       time=clock,
       firmware_fileinfo=factory_firmware_fileinfo,
+      hardware_id = _hardware_id,
+      release_counter = _release_counter,
       timeserver_public_key=key_timeserver_pub)
 
 
@@ -168,8 +175,6 @@ def clean_slate(
 
 
 
-
-
 def create_secondary_pinning_file():
   """
   Load the template pinned.json file and save a filled in version that points
@@ -179,20 +184,21 @@ def create_secondary_pinning_file():
 
   Returns the filename of the created file.
   """
-
+  global TEMP_PINNED_FILE
   pinnings = json.load(
       open(demo.DEMO_SECONDARY_PINNING_FNAME, 'r', encoding='utf-8'))
 
   fname_to_create = os.path.join(
       demo.DEMO_DIR, 'pinned.json_secondary_' + demo.get_random_string(5))
-
+  TEMP_PINNED_FILE = fname_to_create #To be used in the clean_up function
   for repo_name in pinnings['repositories']:
 
-    assert 1 == len(pinnings['repositories'][repo_name]['mirrors']), 'Config error.'
+    assert 1 == len(pinnings['repositories'][repo_name]['mirrors']), \
+    'Config error.'
 
     mirror = pinnings['repositories'][repo_name]['mirrors'][0]
 
-    mirror = mirror.replace('<full_client_dir>', client_directory)
+    mirror = mirror.replace('<full_client_dir>', CLIENT_DIRECTORY)
 
     pinnings['repositories'][repo_name]['mirrors'][0] = mirror
 
@@ -290,7 +296,7 @@ def update_cycle():
   # Download the metadata from the Primary in the form of an archive. This
   # returns the binary data that we need to write to file.
   metadata_archive = pserver.get_metadata(secondary_ecu.ecu_serial)
-
+  #print("\n\nMETADATA WITH SECONDARY\n\n", metadata_archive)
   # Validate the time attestation and internalize the time. Continue
   # regardless.
   try:
@@ -316,7 +322,17 @@ def update_cycle():
 
   # Now tell the Secondary reference implementation code where the archive file
   # is and let it expand and validate the metadata.
-  secondary_ecu.process_metadata(archive_fname)
+  try:
+    secondary_ecu.process_metadata(archive_fname)
+    #print("ARCHIVE FNAME \n\n\n", archive_fname)
+  except uptane.ImageRollBack:
+    print_banner(BANNER_DEFENDED, color=WHITE+DARK_BLUE_BG,
+              text='The Director has instructed us to download an image'
+              ' that has a lower release counter. This image has'
+              ' been rejected.', sound=TADA)
+    generate_signed_ecu_manifest()
+    submit_ecu_manifest_to_primary()
+    return
 
 
   # As part of the process_metadata call, the secondary will have saved
@@ -334,6 +350,7 @@ def update_cycle():
         text='No validated targets were found. Either the Director '
         'did not instruct this ECU to install anything, or the target info '
         'the Director provided could not be validated.')
+    print(secondary_ecu)
     # print(YELLOW + 'No validated targets were found. Either the Director '
     #     'did not instruct this ECU to install anything, or the target info '
     #     'the Director provided could not be validated.' + ENDCOLORS)
@@ -347,7 +364,6 @@ def update_cycle():
 
 
   expected_target_info = secondary_ecu.validated_targets_for_this_ecu[-1]
-
   expected_image_fname = expected_target_info['filepath']
   if expected_image_fname[0] == '/':
     expected_image_fname = expected_image_fname[1:]
@@ -369,6 +385,7 @@ def update_cycle():
 
   # Download the image for this ECU from the Primary.
   (image_fname, image) = pserver.get_image(secondary_ecu.ecu_serial)
+  #print("IMAGE_FNAME", image_fname, image)
 
   if image is None:
     print(YELLOW + 'Requested image from Primary but received none. Update '
@@ -406,7 +423,7 @@ def update_cycle():
     return
 
   # Write the downloaded image binary data to disk.
-  unverified_targets_dir = os.path.join(client_directory, 'unverified_targets')
+  unverified_targets_dir = os.path.join(CLIENT_DIRECTORY, 'unverified_targets')
   if not os.path.exists(unverified_targets_dir):
     os.mkdir(unverified_targets_dir)
   with open(os.path.join(unverified_targets_dir, image_fname), 'wb') as fobj:
@@ -453,7 +470,7 @@ def update_cycle():
   # Inspect the contents of 'image_fname' and search for the string: "evil
   # content".  If this single string is found in any of the images downloaded,
   # print a BANNER_COMPROMISED banner.
-  image_filepath = os.path.join(client_directory, 'unverified_targets', image_fname)
+  image_filepath = os.path.join(CLIENT_DIRECTORY, 'unverified_targets', image_fname)
 
   with open(image_filepath, 'rb') as file_object:
     if file_object.read() == b'evil content':
@@ -476,16 +493,17 @@ def update_cycle():
   # place or something, here is where to do it.)
   # 1. Move the downloaded image from the unverified targets subdirectory to
   #    the root of the client directory.
-  if os.path.exists(os.path.join(client_directory, image_fname)):
-    os.remove(os.path.join(client_directory, image_fname))
+  if os.path.exists(os.path.join(CLIENT_DIRECTORY, image_fname)):
+    os.remove(os.path.join(CLIENT_DIRECTORY, image_fname))
   os.rename(
-      os.path.join(client_directory, 'unverified_targets', image_fname),
-      os.path.join(client_directory, image_fname))
+      os.path.join(CLIENT_DIRECTORY, 'unverified_targets', image_fname),
+      os.path.join(CLIENT_DIRECTORY, image_fname))
 
   # 2. Set the fileinfo in the secondary_ecu object to the target info for the
   #    new firmware.
   secondary_ecu.firmware_fileinfo = expected_target_info
-
+  secondary_ecu.update_release_counter(
+    expected_target_info['fileinfo']['custom']['release_counter'])
 
   print_banner(
       BANNER_UPDATED, color=WHITE+GREEN_BG,
@@ -497,12 +515,10 @@ def update_cycle():
     print('The contents of the newly-installed firmware with filename ' +
         repr(expected_target_info['filepath']) + ' are:')
     print('---------------------------------------------------------')
-    print(open(os.path.join(client_directory, image_fname)).read())
+    print(open(os.path.join(CLIENT_DIRECTORY, image_fname)).read())
     print('---------------------------------------------------------')
 
-
   # Submit info on what is currently installed back to the Primary.
-  generate_signed_ecu_manifest()
   submit_ecu_manifest_to_primary()
 
 
@@ -628,3 +644,14 @@ def looping_update():
       print(repr(e))
       pass
     time.sleep(1)
+
+
+def clean_up():
+  """
+  Deletes the pinned file and temp directory created by the demo
+  """
+  if os.path.isfile(TEMP_PINNED_FILE):
+    os.remove(TEMP_PINNED_FILE)
+
+  if os.path.isdir(CLIENT_DIRECTORY):
+    shutil.rmtree(CLIENT_DIRECTORY)

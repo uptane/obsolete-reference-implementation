@@ -20,7 +20,7 @@ import shutil
 import hashlib
 
 from six.moves.urllib.error import URLError
-
+from io import open #Python2  support
 import tuf
 import tuf.formats
 import tuf.conf
@@ -33,6 +33,8 @@ import uptane.encoding.asn1_codec as asn1_codec
 
 # For temporary convenience:
 import demo # for generate_key, import_public_key, import_private_key
+import json
+import canonicaljson
 
 TEST_DATA_DIR = os.path.join(uptane.WORKING_DIR, 'tests', 'test_data')
 TEST_DIRECTOR_METADATA_DIR = os.path.join(TEST_DATA_DIR, 'director_metadata')
@@ -42,10 +44,18 @@ TEST_DIRECTOR_ROOT_FNAME = os.path.join(
     TEST_DIRECTOR_METADATA_DIR, 'root.' + tuf.conf.METADATA_FORMAT)
 TEST_IMAGE_REPO_ROOT_FNAME = os.path.join(
     TEST_IMAGE_REPO_METADATA_DIR, 'root.' + tuf.conf.METADATA_FORMAT)
-TEST_PINNING_FNAME = os.path.join(TEST_DATA_DIR, 'pinned.json')
+TEST_PINNING_FNAME = os.path.join(TEST_DATA_DIR, 'pinned_secondary.json')
 TEMP_CLIENT_DIR_1 = os.path.join(TEST_DATA_DIR, 'temp_test_secondary1')
 TEMP_CLIENT_DIR_2 = os.path.join(TEST_DATA_DIR, 'temp_test_secondary2')
 TEMP_CLIENT_DIR_3 = os.path.join(TEST_DATA_DIR, 'temp_test_secondary3')
+#Source to copy all the local metadata to the TEMP_CLIENT_DIR
+SOURCE_FOR_LOCAL_METADATA = os.path.join(uptane.WORKING_DIR, 'samples', 'metadata_samples_long_expiry', 'updates_w_custom_field_to_one_ecu_bad_director', 'full_metadata_archive')
+#Source to copy all the target files to TEMP_CLIENT_DIR
+SOURCE_FOR_LOCAL_TARGETS = os.path.join(uptane.WORKING_DIR,'demo', "images")
+TEST_PINNING_TEMPLATE_FNAME = os.path.join(TEST_DATA_DIR, "pinned_template.json")
+
+# I'll initialize this in one of the early tests, and use this for the simple
+# non-damaging tests so as to avoid creating objects all over again.
 
 # I'll initialize these in the __init__ test, and use this for the simple
 # non-damaging tests so as to avoid creating objects all over again.
@@ -60,8 +70,10 @@ vin1 = 'democar'
 vin2 = 'democar'
 vin3 = '000'
 ecu_serial1 = 'TCUdemocar'
-ecu_serial2 = '00000'
+ecu_serial2 = 'BCUdemocar'
 ecu_serial3 = '00000'
+_hardware_id = 'tcu'
+_release_counter = 0
 
 # Initialize these in setUpModule below.
 secondary_ecu_key = None
@@ -83,7 +95,9 @@ factory_firmware_fileinfo = {
 expected_updated_fileinfo = {
     'filepath': '/TCU1.1.txt',
     'fileinfo': {
-        'custom': {'ecu_serial': 'TCUdemocar'},
+        'custom': {"ecu_serial": "TCUdemocar",
+                   "hardware_id": "tcu",
+                   "release_counter": 1},
         'hashes': {
             'sha512': '94d7419b8606103f363aa17feb875575a978df8e88038ea284ff88d90e534eaa7218040384b19992cc7866f5eca803e1654c9ccdf3b250d6198b3c4731216db4',
             'sha256': '56d7cd56a85e34e40d005e1f79c0e95d6937d5528ac0b301dbe68d57e03a5c21'},
@@ -94,7 +108,8 @@ def destroy_temp_dir():
   # Clean up anything that may currently exist in the temp test directories.
   for client_dir in [TEMP_CLIENT_DIR_1, TEMP_CLIENT_DIR_2, TEMP_CLIENT_DIR_3]:
     if os.path.exists(client_dir):
-      shutil.rmtree(client_dir)
+      #shutil.rmtree(client_dir)
+      pass
 
 
 
@@ -146,11 +161,45 @@ def setUpModule():
   # and update tuf.conf.repository_directories before each Secondary is
   # created,  to refer to the client we're creating.
   for client_dir in [TEMP_CLIENT_DIR_1, TEMP_CLIENT_DIR_2, TEMP_CLIENT_DIR_3]:
+
     uptane.common.create_directory_structure_for_client(
         client_dir,
-        TEST_PINNING_FNAME,
+        create_primary_pinning_file(client_dir),
         {'imagerepo': TEST_IMAGE_REPO_ROOT_FNAME,
         'director': TEST_DIRECTOR_ROOT_FNAME})
+
+    for repository in ["director", "imagerepo"]:
+      shutil.copytree(
+          os.path.join(SOURCE_FOR_LOCAL_METADATA,repository),
+          os.path.join(client_dir,repository))
+
+    shutil.copytree(
+        SOURCE_FOR_LOCAL_TARGETS,
+        os.path.join(client_dir, 'director', 'targets'))
+
+
+
+def create_primary_pinning_file(client_dir):
+  """ To change the pinned_template.json file to point to the right source for metadata"""
+
+  with open(TEST_PINNING_TEMPLATE_FNAME, 'r', encoding = 'utf-8') as pinned_file:
+    pinnings = json.load(pinned_file)
+
+  fname_to_create = TEST_PINNING_FNAME
+
+  for repo_name in pinnings['repositories']:
+
+    assert 1 == len(pinnings['repositories'][repo_name]['mirrors']), 'Config error.'
+
+    mirror = pinnings['repositories'][repo_name]['mirrors'][0]
+    mirror = mirror.replace('<full_client_dir>', uptane.WORKING_DIR)
+    mirror = mirror.replace('<temp_test_ecu>', client_dir)
+    pinnings['repositories'][repo_name]['mirrors'][0] = mirror
+
+  with open(fname_to_create, 'wb') as fobj:
+    fobj.write(canonicaljson.encode_canonical_json(pinnings))
+
+  return fname_to_create
 
 
 
@@ -203,6 +252,8 @@ class TestSecondary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=vin1,
           ecu_serial=ecu_serial1,
+          release_counter = _release_counter,
+          hardware_id = _hardware_id,
           ecu_key=secondary_ecu_key,
           time=clock,
           timeserver_public_key=key_timeserver_pub,
@@ -222,6 +273,8 @@ class TestSecondary(unittest.TestCase):
           director_repo_name=42,
           vin=vin1,
           ecu_serial=ecu_serial1,
+          release_counter = _release_counter,
+          hardware_id = _hardware_id,
           ecu_key=secondary_ecu_key,
           time=clock,
           timeserver_public_key=key_timeserver_pub,
@@ -236,6 +289,8 @@ class TestSecondary(unittest.TestCase):
           director_repo_name='string_that_is_not_a_known_repo_name',
           vin=vin1,
           ecu_serial=ecu_serial1,
+          release_counter = _release_counter,
+          hardware_id = _hardware_id,
           ecu_key=secondary_ecu_key,
           time=clock,
           timeserver_public_key=key_timeserver_pub,
@@ -250,6 +305,8 @@ class TestSecondary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=5,
           ecu_serial=ecu_serial1,
+          release_counter = _release_counter,
+          hardware_id = _hardware_id,
           ecu_key=secondary_ecu_key,
           time=clock,
           timeserver_public_key=key_timeserver_pub,
@@ -264,6 +321,8 @@ class TestSecondary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=vin1,
           ecu_serial=500,
+          release_counter = _release_counter,
+          hardware_id = _hardware_id,
           ecu_key=secondary_ecu_key,
           time=clock,
           timeserver_public_key=key_timeserver_pub,
@@ -277,6 +336,8 @@ class TestSecondary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=vin1,
           ecu_serial=ecu_serial1,
+          release_counter = _release_counter,
+          hardware_id = _hardware_id,
           ecu_key={''},
           time=clock,
           timeserver_public_key=key_timeserver_pub,
@@ -291,6 +352,8 @@ class TestSecondary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=vin1,
           ecu_serial=ecu_serial1,
+          release_counter = _release_counter,
+          hardware_id = _hardware_id,
           ecu_key=secondary_ecu_key,
           time='potato',
           timeserver_public_key=key_timeserver_pub,
@@ -305,6 +368,8 @@ class TestSecondary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=vin1,
           ecu_serial=ecu_serial1,
+          release_counter = _release_counter,
+          hardware_id = _hardware_id,
           ecu_key=secondary_ecu_key,
           time=clock,
           timeserver_public_key=key_timeserver_pub,
@@ -324,6 +389,8 @@ class TestSecondary(unittest.TestCase):
           vin=vin1,
           ecu_serial=ecu_serial1,
           ecu_key=secondary_ecu_key,
+          release_counter = _release_counter,
+          hardware_id = _hardware_id,
           time=clock,
           timeserver_public_key=key_timeserver_pub,
           firmware_fileinfo=factory_firmware_fileinfo,
@@ -335,6 +402,8 @@ class TestSecondary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=vin1,
           ecu_serial=ecu_serial1,
+          release_counter = _release_counter,
+          hardware_id = _hardware_id,
           ecu_key=secondary_ecu_key,
           time=clock,
           timeserver_public_key=key_timeserver_pub,
@@ -350,6 +419,8 @@ class TestSecondary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=vin1,
           ecu_serial=ecu_serial1,
+          release_counter = _release_counter,
+          hardware_id = _hardware_id,
           ecu_key=secondary_ecu_key,
           time=clock,
           timeserver_public_key=clock, # INVALID
@@ -377,6 +448,8 @@ class TestSecondary(unittest.TestCase):
         director_repo_name=demo.DIRECTOR_REPO_NAME,
         vin=vin1,
         ecu_serial=ecu_serial1,
+        release_counter = _release_counter,
+        hardware_id = _hardware_id,
         ecu_key=secondary_ecu_key,
         time=clock,
         timeserver_public_key=key_timeserver_pub,
@@ -392,6 +465,8 @@ class TestSecondary(unittest.TestCase):
         director_repo_name=demo.DIRECTOR_REPO_NAME,
         vin=vin2,
         ecu_serial=ecu_serial2,
+        release_counter = _release_counter,
+        hardware_id = _hardware_id,
         ecu_key=secondary_ecu_key,
         time=clock,
         timeserver_public_key=key_timeserver_pub,
@@ -407,6 +482,8 @@ class TestSecondary(unittest.TestCase):
         director_repo_name=demo.DIRECTOR_REPO_NAME,
         vin=vin3,
         ecu_serial=ecu_serial3,
+        release_counter = _release_counter,
+        hardware_id = _hardware_id,
         ecu_key=secondary_ecu_key,
         time=clock,
         timeserver_public_key=key_timeserver_pub,
@@ -451,7 +528,7 @@ class TestSecondary(unittest.TestCase):
       # them). Do this for both clients.
       # The location of the files will be as follows, after the sample
       # metadata archive is expanded (in test 40 below):
-
+      print(client_dir)
       image_repo_mirror = ['file://' + client_dir + '/unverified/imagerepo']
       director_mirror = ['file://' + client_dir + '/unverified/director']
       if vin == '000':
@@ -651,7 +728,8 @@ class TestSecondary(unittest.TestCase):
     # Location of the sample Primary-produced metadata archive
     sample_archive_fname = os.path.join(
         uptane.WORKING_DIR, 'samples', 'metadata_samples_long_expiry',
-        'update_to_one_ecu', 'full_metadata_archive.zip')
+        'updates_w_custom_field_to_one_ecu_bad_director',
+        'full_metadata_archive.zip')
 
     assert os.path.exists(sample_archive_fname), 'Cannot test ' \
         'process_metadata; unable to find expected sample metadata archive' + \
@@ -692,7 +770,8 @@ class TestSecondary(unittest.TestCase):
       # Make sure the archive of unverified metadata was expanded
       for repo in ['director', 'imagerepo']:
         for role in ['root', 'snapshot', 'targets', 'timestamp']:
-          self.assertTrue(os.path.exists(client_dir + '/unverified/' + repo +
+          self.assertTrue(os.path.exists(
+              client_dir + '/unverified/full_metadata_archive/' + repo +
               '/metadata/' + role + '.' + tuf.conf.METADATA_FORMAT))
 
 
