@@ -11,3 +11,4 @@ temp_*/*
 *.egg-info
 __pycache__
 *.pyc
+launch_*
