@@ -44,7 +44,7 @@ server_process = None
 xmlrpc_service_thread = None
 
 
-def clean_slate(use_new_keys=True):
+def clean_slate(use_new_keys=False):
 
   global repo
 

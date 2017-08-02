@@ -86,7 +86,7 @@ most_recent_signed_vehicle_manifest = None
 
 
 def clean_slate(
-    use_new_keys=True,
+    use_new_keys=False,
     # client_directory_name=None,
     vin=_vin,
     ecu_serial=_ecu_serial,
@@ -246,7 +246,7 @@ def close_can_primary():
 
 
 
-def load_or_generate_key(use_new_keys=True):
+def load_or_generate_key(use_new_keys=False):
   """Load or generate an ECU's private key."""
 
   global ecu_key

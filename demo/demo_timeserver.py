@@ -43,7 +43,7 @@ class RequestHandler(xmlrpc_server.SimpleXMLRPCRequestHandler):
 
 
 
-def load_timeserver_key(use_new_keys=True):
+def load_timeserver_key(use_new_keys=False):
   if use_new_keys:
     demo.generate_key('timeserver')
   # Load in from the generated files (whether new or old).
@@ -73,7 +73,7 @@ def get_signed_time_der_wrapper(nonces):
 
 
 
-def listen(use_new_keys=True):
+def listen(use_new_keys=False):
   """
   Listens on TIMESERVER_PORT for xml-rpc calls to functions:
    - get_signed_time(nonces)
