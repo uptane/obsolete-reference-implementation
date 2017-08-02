@@ -66,7 +66,7 @@ def generate_key(keyname):
     Key type: ed25519
     Key location: DEMO_KEYS_DIR
   """
-  rt.generate_and_write_ed25519_keypair(
+  rt.generate_and_write_rsa_keypair(
       os.path.join(DEMO_KEYS_DIR, keyname), password='pw')
 
 
@@ -80,7 +80,7 @@ def import_public_key(keyname):
     Key type: ed25519
     Key location: DEMO_KEYS_DIR
   """
-  return rt.import_ed25519_publickey_from_file(
+  return rt.import_rsa_publickey_from_file(
       os.path.join(DEMO_KEYS_DIR, keyname + '.pub'))
 
 
@@ -93,7 +93,7 @@ def import_private_key(keyname):
     Key type: ed25519
     Key location: DEMO_KEYS_DIR
   """
-  return rt.import_ed25519_privatekey_from_file(
+  return rt.import_rsa_privatekey_from_file(
       os.path.join(DEMO_KEYS_DIR, keyname), password='pw')
 
 

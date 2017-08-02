@@ -62,7 +62,7 @@ director_service_instance = None
 director_service_thread = None
 
 
-def clean_slate(use_new_keys=False):
+def clean_slate(use_new_keys=True):
 
   global director_service_instance
 

@@ -20,6 +20,7 @@ import hashlib
 # imports asn1_codec.
 import uptane.encoding.asn1_codec as asn1_codec
 import uptane.formats
+from pprint import pprint
 
 # Both key types below are supported, but issues may be encountered with RSA
 # if tuf.conf.METADATA_FORMAT is 'der' (rather than 'json').
@@ -398,6 +399,58 @@ def canonical_key_from_pub_and_pri(key_pub, key_pri):
     key['keyval']['public']
     key['keyval']['private']  (for key_pri)
   """
+  assert key_pub['keytype'].encode('ascii','ignore') == \
+     key_pub['keytype'].encode('ascii','ignore')
+
+  if key_pub['keytype'].encode('ascii','ignore') == 'rsa':
+    key = rsa_canonical_key_from_pub_and_pri(key_pub, key_pri)
+  else:
+    key = ED25519_canonical_key_from_pub_and_pri(key_pub, key_pri)
+
+  return key
+
+
+
+def rsa_canonical_key_from_pub_and_pri(key_pub, key_pri):
+  """
+  Formats the RSA private and public key into the right key format.
+  Hard-codes the hashing algorithms to be SHA-256 and SHA-512 for
+  consistency across RSA and ED25519 keys.
+  """
+  key = {
+      'keytype': key_pub['keytype'],
+      'keyid': key_pub['keyid'],
+      'keyval': {
+        'public': key_pub['keyval']['public'],
+        'private': key_pri['keyval']['private']
+                },
+      'keyid_hash_algorithms':  [u'sha256', u'sha512']}
+  tuf.formats.ANYKEY_SCHEMA.check_match(key)
+  print("RSA KEY\n")
+  pprint(key)
+  return key
+
+
+
+def fix_string_formatting_for_rsa_keys(key):
+  """
+  Default format of an RSA Key:
+
+  '-----BEGIN PUBLIC KEY-----\n
+  ..............................
+  \n-----END PUBLIC KEY-----'
+
+  The function strips the BEGIN PUBLIC KEY and END PUBLIC KEY line
+  to return just the key.
+  """
+  return key[key.find("\n"):key.rfind("\n")]
+
+
+
+def ED25519_canonical_key_from_pub_and_pri(key_pub, key_pri):
+  """
+  Formats the ED25519 private and public key into the right key format.
+  """
   key = {
       'keytype': key_pub['keytype'],
       'keyid': key_pub['keyid'],
@@ -405,10 +458,10 @@ def canonical_key_from_pub_and_pri(key_pub, key_pri):
         'public': key_pub['keyval']['public'],
         'private': key_pri['keyval']['private']},
       'keyid_hash_algorithms': copy.deepcopy(key_pub['keyid_hash_algorithms'])}
+    
   tuf.formats.ANYKEY_SCHEMA.check_match(key)
 
   return key
-
 
 
 

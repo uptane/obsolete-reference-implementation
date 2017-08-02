@@ -1,1 +1,11 @@
-{"keyid_hash_algorithms": ["sha256", "sha512"], "keyval": {"public": "5d7750b208dfc7ade8f6106b9c3fa25162d5a184f302161e429f19a79e66a908"}, "keytype": "ed25519"}
+-----BEGIN PUBLIC KEY-----
+MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA8y0+Rlbi+P9JzrM/w5VR
+5LH9nvZC/4KMbqHkqdQkbE9+Z66KvTM/d1FaayyDagbJLMfU0PtCMKRPYB5Zkuuj
+35WIWVIeCgo4EFyFnuVkObm2V1C0WNEAF/lblRnt9dwdb7tAHjh6dqnWNzv7mZAM
+G0vvGos9Jk/B5PwziW123tsU1vXlh8UgeqjBqLR7Q5kSVbzwdk50mQgvv2NGBuIo
+lEOBzH3koCiolnnNA2Fki7gYVvLGO4O578btKRtNrb+MTRbpIJlbrvTkNcAxWYTq
++Q53gursYZOlf/VwbV1EKP0AbWWdrUxfeGgTzXP1h9Vhpfdr/8T4irg3vMb+DnMB
+244iPNBNoPwc5cTdQyVO2kOZnEHqMHM/l5n/VyaGDcSkUX9g/C35ULjdPqtNXiEq
+1eWLbJCk/wpDh1dmj2GDs9UtYntUh9D2Otk/6bVP7/tboyDRUaDzCgIeVhB7GU8q
+13ukT4dUluHXUsKPPBW1ioyEaHO/FX04fIwKdCx1MRCfAgMBAAE=
+-----END PUBLIC KEY-----
