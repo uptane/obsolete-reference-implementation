@@ -53,6 +53,9 @@ from six.moves import xmlrpc_server # for the director services interface
 
 import atexit # to kill server process on exit()
 
+import Crypto.Cipher as cipher
+import Crypto.PublicKey as public_key
+
 KNOWN_VINS = ['111', '112', '113', 'democar']
 
 # Dynamic global objects
@@ -592,6 +595,10 @@ def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
   # TODO: This should probably place the file into a common targets directory
   # that is then softlinked to all repositories.
   shutil.copy(target_fname, destination_filepath)
+  if ecu_serial in inventory.get_registered_ecu_serials():
+    public_key_for_ecu = get_ecu_public_key(ecu_serial)
+
+  print("PUBLIC KEY FOR ECU\n", public_key_for_ecu)
 
   print('Adding target ' + repr(target_fname) + ' for ECU ' + repr(ecu_serial))
 

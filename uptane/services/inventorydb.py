@@ -397,3 +397,11 @@ def check_ecu_registered(ecu_serial):
   if ecu_serial not in ecu_public_keys:
     raise uptane.UnknownECU('The given ECU serial, ' + repr(ecu_serial) +
         ', is not known.')
+
+
+
+def get_registered_ecu_serials():
+  """
+  Returns a list of all the ecu_serials that have been registered
+  """
+  return ecu_public_keys.keys()
