@@ -43,6 +43,9 @@ from uptane import GREEN, RED, YELLOW, ENDCOLORS
 
 import os
 import hashlib
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.PublicKey import RSA
+from Crypto import Random
 
 log = uptane.logging.getLogger('director')
 log.addHandler(uptane.file_handler)
@@ -558,6 +561,56 @@ class Director:
     For example, try to detect freeze attacks and mix-and-match attacks.
     """
     pass
+
+
+
+
+  def AES_Cipher(self, file_to_encrypt):
+    """
+    Uses AES-128 to encrypt the contents of the target file.
+    Returns the AES_Key and Encrpyted Payload.
+    Creates a randomized 16 bit key everytime an ECU target is assigned. 
+    """
+    aeskey = Random.new().read(16)
+    #print('1',len(aeskey))
+    iv = Random.new().read(AES.block_size)
+    #print('2',iv)
+    cipher = AES.new(aeskey, AES.MODE_CFB, iv)
+    #print('3',cipher)
+    msg = iv + cipher.encrypt(open(file_to_encrypt, 'r').read())
+    print('4', msg)
+    return (msg, aeskey)
+
+
+
+
+  def encrypt_aes_key(self, public_key, aes_key):
+    """
+    Uses RSA to encrypt the AES Key.
+    Encrypts the AES Key using the public key of the given primary/secondary.
+    Returns the key which will be decrypted by the designated ECU using
+    its private key.
+    """
+    print(public_key)
+    public_rsa_key = RSA.importKey(public_key)
+    #print('5',rsakey)
+    public_rsa_key = PKCS1_OAEP.new(public_rsa_key)
+    #print('6',rsakey)
+    encrypted = public_rsa_key.encrypt(aes_key)
+    print('7',encrypted)
+    return encrypted
+
+
+
+
+  def encrypt_target(self, target_fname, ecu_public_key):
+    """
+    Encrypts a target using the RSA Public Key for the ecu
+    Returns an encrypted file saved as the target
+    """
+    encrypted_data, aes_key = self.AES_Cipher(target_fname)
+    encrypted_aes_key = self.encrypt_aes_key(ecu_public_key, aes_key)
+    return (encrypted_data, encrypted_aes_key)
 
 
 

@@ -53,9 +53,6 @@ from six.moves import xmlrpc_server # for the director services interface
 
 import atexit # to kill server process on exit()
 
-import Crypto.Cipher as cipher
-import Crypto.PublicKey as public_key
-
 KNOWN_VINS = ['111', '112', '113', 'democar']
 
 # Dynamic global objects
@@ -584,23 +581,35 @@ def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
 
   if vin not in director_service_instance.vehicle_repositories:
     raise uptane.UnknownVehicle('The VIN provided, ' + repr(vin) + ' is not '
-        'that of a vehicle known to this Director.')
+    'that of a vehicle known to this Director.')
 
   repo = director_service_instance.vehicle_repositories[vin]
   repo_dir = repo._repository_directory
 
   print('Copying target file into place.')
   destination_filepath = os.path.join(repo_dir, 'targets', filepath_in_repo)
+  print(destination_filepath)
 
   # TODO: This should probably place the file into a common targets directory
   # that is then softlinked to all repositories.
-  shutil.copy(target_fname, destination_filepath)
+  #shutil.copy(target_fname, destination_filepath)
+
   if ecu_serial in inventory.get_registered_ecu_serials():
-    public_key_for_ecu = get_ecu_public_key(ecu_serial)
+    print(inventory.get_ecu_public_key(ecu_serial))
+    public_key_for_ecu = \
+        inventory.get_ecu_public_key(ecu_serial)['keyval']['public']
 
-  print("PUBLIC KEY FOR ECU\n", public_key_for_ecu)
+    encrypted_target_data, encrypted_aes_key = \
+        director_service_instance.encrypt_target(
+        target_fname, public_key_for_ecu)
 
-  print('Adding target ' + repr(target_fname) + ' for ECU ' + repr(ecu_serial))
+    with open(destination_filepath, 'w') as f:
+      f.write(encrypted_target_data)
+
+
+    print("PUBLIC KEY FOR ECU\n", public_key_for_ecu)
+
+    print('Adding target ' + repr(target_fname) + ' for ECU ' + repr(ecu_serial))
 
   # This calls the appropriate vehicle repository.
   director_service_instance.add_target_for_ecu(
