@@ -46,6 +46,7 @@ import hashlib
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from Crypto import Random
+import binascii
 
 log = uptane.logging.getLogger('director')
 log.addHandler(uptane.file_handler)
@@ -524,7 +525,7 @@ class Director:
 
 
 
-  def add_target_for_ecu(self, vin, ecu_serial, target_filepath):
+  def add_target_for_ecu(self, vin, ecu_serial, target_filepath, file_hashes = None, encrypted_symmetric_key = None):
     """
     Add a target to the repository for a vehicle, marked as being for a
     specific ECU.
@@ -547,9 +548,18 @@ class Director:
     # elif ecu_serial not in inventory.ecu_public_keys:
     #   raise uptane.UnknownECU('The ECU Serial provided, ' + repr(ecu_serial) +
     #       ' is not that of an ECU known to this Director.')
-
-    self.vehicle_repositories[vin].targets.add_target(
-        target_filepath, custom={'ecu_serial': ecu_serial})
+    custom_dic = {}
+    if file_hashes == None and encrypted_symmetric_key = None:
+      self.vehicle_repositories[vin].targets.add_target(
+          target_filepath, custom={'ecu_serial': ecu_serial})
+    else:
+      custom_dic['encrypted_images'] = True
+      custom_dic['ecu_serial'] = ecu_serial
+      custom_dic['encrypted_file_hashes'] = file_hashes
+      custom_dic['encrypted_symmetric_key'] = encrypted_symmetric_key
+      print("Custom Dictionary", custom_dic)
+      self.vehicle_repositories[vin].targets.add_target(
+          target_filepath, custom = custom_dic)
 
 
 
@@ -569,7 +579,7 @@ class Director:
     """
     Uses AES-128 to encrypt the contents of the target file.
     Returns the AES_Key and Encrpyted Payload.
-    Creates a randomized 16 bit key everytime an ECU target is assigned. 
+    Creates a randomized 16 bit key everytime an ECU target is assigned.
     """
     aeskey = Random.new().read(16)
     #print('1',len(aeskey))
@@ -579,7 +589,7 @@ class Director:
     #print('3',cipher)
     msg = iv + cipher.encrypt(open(file_to_encrypt, 'r').read())
     print('4', msg)
-    return (msg, aeskey)
+    return (binascii.hexlify(msg), aeskey)
 
 
 
@@ -598,7 +608,15 @@ class Director:
     #print('6',rsakey)
     encrypted = public_rsa_key.encrypt(aes_key)
     print('7',encrypted)
-    return encrypted
+    return binascii.hexlify(encrypted)
+
+
+
+  def generate_hashes(self, filename):
+    return {'sha256': tuf.hash.digest_filename(
+        filename, algorithm = 'sha256').hexdigest(),
+        'sha512':tuf.hash.digest_filename(
+        filename, algorithm = 'sha512').hexdigest()}
 
 
 
@@ -610,6 +628,8 @@ class Director:
     """
     encrypted_data, aes_key = self.AES_Cipher(target_fname)
     encrypted_aes_key = self.encrypt_aes_key(ecu_public_key, aes_key)
+    print('encrypted_data \n', encrypted_data,
+        'encrypted_aes_key\n', encrypted_aes_key)
     return (encrypted_data, encrypted_aes_key)
 
 

@@ -38,6 +38,7 @@ import uptane # Import before TUF modules; may change tuf.conf values.
 import uptane.services.director as director
 import uptane.services.inventorydb as inventory
 import tuf.formats
+import tuf.hash
 
 import uptane.encoding.asn1_codec as asn1_codec
 
@@ -599,21 +600,29 @@ def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
     public_key_for_ecu = \
         inventory.get_ecu_public_key(ecu_serial)['keyval']['public']
 
-    encrypted_target_data, encrypted_aes_key = \
+    #hashes['unencrypted_file_hashes'] = \
+        #director_service_instance.generate_hashes(target_fname)
+
+    encrypted_target_data, encrypted_aes_key= \
         director_service_instance.encrypt_target(
         target_fname, public_key_for_ecu)
 
     with open(destination_filepath, 'w') as f:
       f.write(encrypted_target_data)
 
+    encrypted_hash = director_service_instance.generate_hashes(
+        destination_filepath)
 
     print("PUBLIC KEY FOR ECU\n", public_key_for_ecu)
+
+    print("Encrypted AES Key", encrypted_aes_key)
 
     print('Adding target ' + repr(target_fname) + ' for ECU ' + repr(ecu_serial))
 
   # This calls the appropriate vehicle repository.
-  director_service_instance.add_target_for_ecu(
-      vin, ecu_serial, destination_filepath)
+    director_service_instance.add_target_for_ecu(
+        vin, ecu_serial, destination_filepath, file_hashes = encrypted_hash,
+        encrypted_symmetric_key = encrypted_aes_key)
 
 
 
