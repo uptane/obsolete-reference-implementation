@@ -12,7 +12,7 @@ import logging, time # both for logging
 
  # Configure TUF to use DER format instead of Python dictionaries / JSON.
 import tuf.conf
-tuf.conf.METADATA_FORMAT = 'der'
+tuf.conf.METADATA_FORMAT = 'json'
 
 # FIXME: I actually think other modules rely on the `os` imported here and
 # not just for getcwd
@@ -41,6 +41,18 @@ class Spoofing(Error):
   Received a message from an ECU that contains conflicting indications of
   what the source ECU's unique identifier is, or received an attempt to register
   an ECU that was already registered.
+  """
+  pass
+
+class HardwareIDMismatch(Error):
+  """
+  Received an image install directed by director that doesn't match the HardwareID of the ECU.
+  """
+  pass
+
+class BadReleaseCounterValue(Error):
+  """
+  Received an image to download with the Release Counter value lower than the one already installed.
   """
   pass
 

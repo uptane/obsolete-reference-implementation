@@ -22,6 +22,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from io import open # TODO: Determine if this should be here.
 
+
 import uptane # Import before TUF modules; may change tuf.conf values.
 
 import os # For paths and makedirs
@@ -41,7 +42,7 @@ import uptane.encoding.asn1_codec as asn1_codec
 
 
 from uptane import GREEN, RED, YELLOW, ENDCOLORS
-
+from demo.uptane_banners import *
 
 log = uptane.logging.getLogger('secondary')
 log.addHandler(uptane.file_handler)
@@ -72,6 +73,13 @@ class Secondary(object):
       implementation, this conforms to uptane.formats.ECU_SERIAL_SCHEMA.
       (In other implementations, the important point is that this should be
       unique.) The Director should be aware of this identifier.
+
+    self.hardware_id
+      A unique identifier for an ECU through it's hardware ID. Conforms to uptane.formats.HARDWARE_ID_SCHEMA. This is used to prevent a compromised director from causing an ECU to download an image not intended for it. 
+
+
+    self.release_counter
+      A dictionary wih counters to track the version number of the images installed. Conforms to uptane.formats.RELEASE_COUNTER_SCHEMA. This is used to prevent a compromised director from causing an ECU to download an outdated image or an older one with known vulnerabilities.  
 
     self.ecu_key:
       The signing key for this Secondary ECU. This key will be used to sign
@@ -173,6 +181,8 @@ class Secondary(object):
     ecu_key,
     time,
     timeserver_public_key,
+    release_counter = 1,
+    hardware_id = "SecondaryPotato101",
     firmware_fileinfo=None,
     director_public_key=None,
     partial_verifying=False):
@@ -230,6 +240,8 @@ class Secondary(object):
     tuf.formats.PATH_SCHEMA.check_match(director_repo_name)
     uptane.formats.VIN_SCHEMA.check_match(vin)
     uptane.formats.ECU_SERIAL_SCHEMA.check_match(ecu_serial)
+    uptane.formats.HARDWARE_ID_SCHEMA.check_match(hardware_id)
+    uptane.formats.RELEASE_COUNTER_SCHEMA.check_match(release_counter)
     tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(time)
     tuf.formats.ANYKEY_SCHEMA.check_match(timeserver_public_key)
     tuf.formats.ANYKEY_SCHEMA.check_match(ecu_key)
@@ -246,6 +258,8 @@ class Secondary(object):
     self.director_public_key = director_public_key
     self.partial_verifying = partial_verifying
     self.firmware_fileinfo = firmware_fileinfo
+    self.hardware_id = hardware_id
+    self.release_counter = release_counter
 
     if not self.partial_verifying and self.director_public_key is not None:
       raise uptane.Error('Secondary not set as partial verifying, but a director ' # TODO: Choose error class.
@@ -274,7 +288,10 @@ class Secondary(object):
     self.nonce_next = self._create_nonce()
     self.validated_targets_for_this_ecu = []
 
-
+  def __str__(self):
+    a = "VIN: {}, ECU_SERIAL: {}, HARDWARE_ID: {}, RELEASE_COUNTER: {}".format(self.vin, self.ecu_serial, self.hardware_id, self.release_counter)
+    #print("MYSELF")
+    return a
 
 
 
@@ -338,6 +355,8 @@ class Secondary(object):
     # First, construct and check an ECU_VERSION_MANIFEST_SCHEMA.
     ecu_manifest = {
         'ecu_serial': self.ecu_serial,
+        'hardware_id' : self.hardware_id,
+        'release_counter' : self.release_counter,
         'installed_image': self.firmware_fileinfo,
         'timeserver_time': self.all_valid_timeserver_times[-1],
         'previous_timeserver_time': self.all_valid_timeserver_times[-2],
@@ -483,7 +502,6 @@ class Secondary(object):
 
     # Refresh the top-level metadata first (all repositories).
     self.updater.refresh()
-
     validated_targets_for_this_ecu = []
 
     # Comb through the Director's direct instructions, picking out only the
@@ -491,11 +509,26 @@ class Secondary(object):
     for target in self.updater.targets_of_role(
         rolename='targets', repo_name=self.director_repo_name):
 
-      # Ignore target info not marked as being for this ECU.
       if 'custom' not in target['fileinfo'] or \
           'ecu_serial' not in target['fileinfo']['custom'] or \
+          'hardware_id' not in target['fileinfo']['custom'] or \
+          'release_counter' not in target['fileinfo']['custom'] or \
           self.ecu_serial != target['fileinfo']['custom']['ecu_serial']:
         continue
+
+      else:
+        if self.hardware_id != target['fileinfo']['custom']['hardware_id']:
+          log.warning(RED + 'Received a target from the Director with instructions to install an Image on self with ECU_Serial {} with mismatching hardwareID. Diregarding/not downloading target for saving. The target is {}'.format(self.ecu_serial, repr(target))+ ENDCOLORS)
+          continue
+
+        if self.release_counter > target['fileinfo']['custom']['release_counter']:
+          log.warning(RED + 'Received a target from the Director with instructions to install an Image {} on self with ECU_Serial {} with lower value of release counter than current. Diregarding/not downloading target for saving. The target is {}'.format(target['filepath'], self.ecu_serial, repr(target))+ ENDCOLORS)
+          raise uptane.BadReleaseCounterValue("The director has instructed the ECU to download an image that has a lower relase counter than the current. Image rejected")
+        else:
+          new_self_release_counter = target['fileinfo']['custom']['release_counter']
+
+      
+
 
       # Fully validate the target info for our target(s).
       try:
@@ -508,11 +541,11 @@ class Secondary(object):
             ENDCOLORS)
         continue
 
-
     self.validated_targets_for_this_ecu = validated_targets_for_this_ecu
 
 
-
+  def update_release_counter(self, new_release_counter_val):
+    self.release_counter = new_release_counter_val
 
 
   def get_validated_target_info(self, target_filepath):

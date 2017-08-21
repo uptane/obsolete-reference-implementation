@@ -173,7 +173,20 @@ class Director:
           'origin ECU (' + repr(ecu_serial) + ') is not the same as what is '
           'signed in the manifest itself (' +
           repr(signed_ecu_manifest['signed']['ecu_serial']) + ').')
+    """
+    if hardware_id != signed_ecu_manifest['signed']['hardware_id']:
+      raise uptane.Spoofing('Received a spoofed or mistaken manifest: supposed '
+          'hardware_id (' + repr(hardware_id) + ') is not the same as what is '
+          'signed in the manifest itself (' +
+          repr(signed_ecu_manifest['signed']['hardware_id']) + ').')
 
+    if release_counter != signed_ecu_manifest['signed']['release_counter']:
+      raise uptane.Spoofing('Received a spoofed or mistaken manifest: supposed '
+          'release_counter (' + repr(release_counter) + ') is not the same as what is '
+          'signed in the manifest itself (' +
+          repr(signed_ecu_manifest['signed']['release_counter']) + ').')
+
+    """
     if ecu_serial not in inventory.ecu_public_keys:
       log.info(
           'Validation failed on an ECU Manifest: ECU ' + repr(ecu_serial) +
@@ -265,7 +278,10 @@ class Director:
       uptane.formats.DER_DATA_SCHEMA.check_match(signed_vehicle_manifest)
       signed_vehicle_manifest = asn1_codec.convert_signed_der_to_dersigned_json(
           signed_vehicle_manifest, datatype='vehicle_manifest')
+      #print("Signed vehicle manifest", signed_vehicle_manifest)
 
+    #print(signed_vehicle_manifest)
+    
     uptane.formats.SIGNABLE_VEHICLE_VERSION_MANIFEST_SCHEMA.check_match(
         signed_vehicle_manifest)
 
@@ -293,7 +309,7 @@ class Director:
     # ECU (may have multiple manifests per ECU).
     all_ecu_manifests = \
         signed_vehicle_manifest['signed']['ecu_version_manifests']
-
+   
     for ecu_serial in all_ecu_manifests:
       ecu_manifests = all_ecu_manifests[ecu_serial]
       for manifest in ecu_manifests:
@@ -336,7 +352,6 @@ class Director:
     uptane.formats.ECU_SERIAL_SCHEMA.check_match(primary_ecu_serial)
     uptane.formats.SIGNABLE_VEHICLE_VERSION_MANIFEST_SCHEMA.check_match(
         vehicle_manifest)
-
 
     if primary_ecu_serial != vehicle_manifest['signed']['primary_ecu_serial']:
       raise uptane.Spoofing('Received a spoofed or mistaken vehicle manifest: '
@@ -521,7 +536,8 @@ class Director:
 
 
 
-  def add_target_for_ecu(self, vin, ecu_serial, target_filepath):
+  def add_target_for_ecu(self, vin, ecu_serial, target_filepath,
+      hardware_id=None, release_counter=None):
     """
     Add a target to the repository for a vehicle, marked as being for a
     specific ECU.
@@ -545,8 +561,14 @@ class Director:
     #   raise uptane.UnknownECU('The ECU Serial provided, ' + repr(ecu_serial) +
     #       ' is not that of an ECU known to this Director.')
 
+    custom = {'ecu_serial': ecu_serial}
+    if hardware_id is not None:
+      custom['hardware_id'] = hardware_id
+    if release_counter is not None:
+      custom['release_counter'] = release_counter
+
     self.vehicle_repositories[vin].targets.add_target(
-        target_filepath, custom={'ecu_serial': ecu_serial})
+        target_filepath, custom=custom)
 
 
 
