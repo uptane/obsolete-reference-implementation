@@ -44,12 +44,15 @@ import json # for customizing the Secondary's pinnings file.
 import canonicaljson
 
 from six.moves import xmlrpc_client
+from pprint import pprint
 
 # Globals
 CLIENT_DIRECTORY_PREFIX = 'temp_secondary' # name for this secondary's directory
 client_directory = None
 _vin = '111'
-_ecu_serial = '22222'
+_ecu_serial = 'ecu11111'
+_hardware_id = 'SecondaryInfotainment111'
+_release_counter = 0
 _primary_host = demo.PRIMARY_SERVER_HOST
 _primary_port = demo.PRIMARY_SERVER_DEFAULT_PORT
 firmware_filename = 'secondary_firmware.txt'
@@ -141,6 +144,8 @@ def clean_slate(
       ecu_key=ecu_key,
       time=clock,
       firmware_fileinfo=factory_firmware_fileinfo,
+      hardware_id = _hardware_id,
+      release_counter = _release_counter,
       timeserver_public_key=key_timeserver_pub)
 
 
@@ -168,8 +173,6 @@ def clean_slate(
 
 
 
-
-
 def create_secondary_pinning_file():
   """
   Load the template pinned.json file and save a filled in version that points
@@ -188,7 +191,8 @@ def create_secondary_pinning_file():
 
   for repo_name in pinnings['repositories']:
 
-    assert 1 == len(pinnings['repositories'][repo_name]['mirrors']), 'Config error.'
+    assert 1 == len(pinnings['repositories'][repo_name]['mirrors']), \
+    'Config error.'
 
     mirror = pinnings['repositories'][repo_name]['mirrors'][0]
 
@@ -290,7 +294,7 @@ def update_cycle():
   # Download the metadata from the Primary in the form of an archive. This
   # returns the binary data that we need to write to file.
   metadata_archive = pserver.get_metadata(secondary_ecu.ecu_serial)
-
+  #print("\n\nMETADATA WITH SECONDARY\n\n", metadata_archive)
   # Validate the time attestation and internalize the time. Continue
   # regardless.
   try:
@@ -316,7 +320,17 @@ def update_cycle():
 
   # Now tell the Secondary reference implementation code where the archive file
   # is and let it expand and validate the metadata.
-  secondary_ecu.process_metadata(archive_fname)
+  try:
+    secondary_ecu.process_metadata(archive_fname)
+    #print("ARCHIVE FNAME \n\n\n", archive_fname)
+  except uptane.ImageRollBack:
+    print_banner(BANNER_DEFENDED, color=WHITE+DARK_BLUE_BG,
+              text='The Director has instructed us to download an image'
+              ' that has a lower release counter. This image has'
+              ' been rejected.', sound=TADA)
+    generate_signed_ecu_manifest()
+    submit_ecu_manifest_to_primary()
+    return
 
 
   # As part of the process_metadata call, the secondary will have saved
@@ -334,6 +348,7 @@ def update_cycle():
         text='No validated targets were found. Either the Director '
         'did not instruct this ECU to install anything, or the target info '
         'the Director provided could not be validated.')
+    print(secondary_ecu)
     # print(YELLOW + 'No validated targets were found. Either the Director '
     #     'did not instruct this ECU to install anything, or the target info '
     #     'the Director provided could not be validated.' + ENDCOLORS)
@@ -347,7 +362,6 @@ def update_cycle():
 
 
   expected_target_info = secondary_ecu.validated_targets_for_this_ecu[-1]
-
   expected_image_fname = expected_target_info['filepath']
   if expected_image_fname[0] == '/':
     expected_image_fname = expected_image_fname[1:]
@@ -369,6 +383,7 @@ def update_cycle():
 
   # Download the image for this ECU from the Primary.
   (image_fname, image) = pserver.get_image(secondary_ecu.ecu_serial)
+  #print("IMAGE_FNAME", image_fname, image)
 
   if image is None:
     print(YELLOW + 'Requested image from Primary but received none. Update '
@@ -485,7 +500,8 @@ def update_cycle():
   # 2. Set the fileinfo in the secondary_ecu object to the target info for the
   #    new firmware.
   secondary_ecu.firmware_fileinfo = expected_target_info
-
+  secondary_ecu.update_release_counter(
+    expected_target_info['fileinfo']['custom']['release_counter'])
 
   print_banner(
       BANNER_UPDATED, color=WHITE+GREEN_BG,
@@ -500,9 +516,7 @@ def update_cycle():
     print(open(os.path.join(client_directory, image_fname)).read())
     print('---------------------------------------------------------')
 
-
   # Submit info on what is currently installed back to the Primary.
-  generate_signed_ecu_manifest()
   submit_ecu_manifest_to_primary()
 
 

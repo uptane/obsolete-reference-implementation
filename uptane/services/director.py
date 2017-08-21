@@ -337,7 +337,6 @@ class Director:
     uptane.formats.SIGNABLE_VEHICLE_VERSION_MANIFEST_SCHEMA.check_match(
         vehicle_manifest)
 
-
     if primary_ecu_serial != vehicle_manifest['signed']['primary_ecu_serial']:
       raise uptane.Spoofing('Received a spoofed or mistaken vehicle manifest: '
           'the supposed origin Primary ECU (' + repr(primary_ecu_serial) + ') '
@@ -421,7 +420,6 @@ class Director:
     # Error out if the signature isn't valid and from the expected party.
     # Also checks argument format.
     self.validate_ecu_manifest(ecu_serial, signed_ecu_manifest)
-
     # Otherwise, we save it:
     inventory.save_ecu_manifest(vin, ecu_serial, signed_ecu_manifest)
 
@@ -521,7 +519,8 @@ class Director:
 
 
 
-  def add_target_for_ecu(self, vin, ecu_serial, target_filepath):
+  def add_target_for_ecu(self, vin, ecu_serial, target_filepath,
+      hardware_id=None, release_counter=None):
     """
     Add a target to the repository for a vehicle, marked as being for a
     specific ECU.
@@ -545,8 +544,14 @@ class Director:
     #   raise uptane.UnknownECU('The ECU Serial provided, ' + repr(ecu_serial) +
     #       ' is not that of an ECU known to this Director.')
 
+    custom = {'ecu_serial': ecu_serial}
+    if hardware_id is not None:
+      custom['hardware_id'] = hardware_id
+    if release_counter is not None:
+      custom['release_counter'] = release_counter
+
     self.vehicle_repositories[vin].targets.add_target(
-        target_filepath, custom={'ecu_serial': ecu_serial})
+        target_filepath, custom=custom)
 
 
 

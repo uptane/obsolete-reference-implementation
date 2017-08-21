@@ -118,14 +118,20 @@ def clean_slate(use_new_keys=False):
 
 
   # Add some starting image files, primarily for use with the web frontend.
-  add_target_to_imagerepo('demo/images/INFO1.0.txt', 'INFO1.0.txt')
-  add_target_to_imagerepo('demo/images/TCU1.0.txt', 'TCU1.0.txt')
-  add_target_to_imagerepo('demo/images/TCU1.1.txt', 'TCU1.1.txt')
-  add_target_to_imagerepo('demo/images/TCU1.2.txt', 'TCU1.2.txt')
-  add_target_to_imagerepo('demo/images/BCU1.0.txt', 'BCU1.0.txt')
-  add_target_to_imagerepo('demo/images/BCU1.1.txt', 'BCU1.1.txt')
-  add_target_to_imagerepo('demo/images/BCU1.2.txt', 'BCU1.2.txt')
-
+  add_target_to_imagerepo('demo/images/INFO1.0.txt', 'INFO1.0.txt',
+      hardware_id='info', release_counter=0)
+  add_target_to_imagerepo('demo/images/TCU1.0.txt', 'TCU1.0.txt',
+      hardware_id='tcu', release_counter=0)
+  add_target_to_imagerepo('demo/images/TCU1.1.txt', 'TCU1.1.txt',
+      hardware_id='tcu', release_counter=1)
+  add_target_to_imagerepo('demo/images/TCU1.2.txt', 'TCU1.2.txt',
+      hardware_id='tcu', release_counter=2)
+  add_target_to_imagerepo('demo/images/BCU1.0.txt', 'BCU1.0.txt',
+      hardware_id='bcu', release_counter=0)
+  add_target_to_imagerepo('demo/images/BCU1.1.txt', 'BCU1.1.txt',
+      hardware_id='bcu', release_counter=0)
+  add_target_to_imagerepo('demo/images/BCU1.2.txt', 'BCU1.2.txt',
+      hardware_id='bcu', release_counter=0)
 
   write_to_live()
 
@@ -157,7 +163,8 @@ def write_to_live():
 
 
 
-def add_target_to_imagerepo(target_fname, filepath_in_repo):
+def add_target_to_imagerepo(
+    target_fname, filepath_in_repo, hardware_id, release_counter):
   """
   For use in attacks and more specific demonstration.
 
@@ -165,11 +172,24 @@ def add_target_to_imagerepo(target_fname, filepath_in_repo):
   as a target file (calculating its cryptographic hash and length)
 
   <Arguments>
+
     target_fname
       The full filename of the file to be added as a target to the image
       repository's targets role metadata. This file should be in the targets
       subdirectory of the repository directory.  This doesn't employ
       delegations, which would have to be done manually.
+
+    filepath_in_repo
+      The path relative to the root of the repository's targets directory
+      where this file will be kept and accessed by clients. (e.g. 'file1.txt'
+      or 'brakes/firmware.tar.gz')
+
+    hardware_id
+      A unique identifier for an ECU through it's hardware ID. Conforms to uptane.formats.HARDWARE_ID_SCHEMA. This is used to prevent a compromised director from causing an ECU to download an image not intended for it. 
+
+    release_counter
+      An integer to track the version number of the image installed. Conforms to uptane.formats.RELEASE_COUNTER_SCHEMA. This is used to prevent a compromised director from causing an ECU to download an outdated image or an older one with known vulnerabilities. 
+
   """
   global repo
 
@@ -182,7 +202,13 @@ def add_target_to_imagerepo(target_fname, filepath_in_repo):
 
   shutil.copy(target_fname, destination_filepath)
 
-  repo.targets.add_target(destination_filepath)
+  custom = {}
+  custom['hardware_id'] = hardware_id
+  custom['release_counter'] = release_counter
+
+  # If custom is empty, pass None, which is what TUF expects instead of {}.
+  repo.targets.add_target(
+    destination_filepath, custom=custom if custom else None)
 
 
 
@@ -447,7 +473,40 @@ def undo_keyed_arbitrary_package_attack(target_filepath):
   print('COMPLETED UNDO ATTACK')
 
 
+def image_rollback_attack(firmware_fname, release_counter = 0, hardware_id = "SecondaryPotato101"):
+  """
+  Assumes a compromised director. 
+  Tries to install an image with a lower release counter on the ecu. Should be stopped. 
+  Default release counter of our ECUs is set to 1. 
+  """
+  print("ATTACK: IMAGE ROLLBACK ATTACK, an attempt to install a firmware with lower release counter than that of the ECU")
+  filepath_in_repo = firmware_fname
+  open(firmware_fname, 'w').write('Fresh firmware image')
+  add_target_to_imagerepo(firmware_fname, filepath_in_repo, release_counter, hardware_id)
+  write_to_live()
 
+
+def confused_bundle_attack(firmware_fname, release_counter = 3, hardware_id = "SecondaryPotato101"):
+  """
+  Assumes a compromised director.
+  Tries to install images with release counters that don't match the other image repositories. 
+  """
+  print("ATTACK: confused_bundle_attack, an attempt to install a compromised image with a release_counter that doesn't match that of other repositories.")
+  filepath_in_repo = firmware_fname
+  open(firmware_fname, 'w').write('Fresh firmware image')
+  add_target_to_imagerepo(firmware_fname, filepath_in_repo, release_counter, hardware_id)
+  write_to_live()
+
+def sneaky_director_attack(firmware_fname, release_counter = 3, hardware_id = "SecondaryPotato101"):
+  """
+  Assumes a compromised director. 
+  Tries to install an image on an ECU that is not meant for that particular ECU through its ECU.
+  """
+  print("ATTACK: SNEAKY DIRECTOR ATTACK. Tries to install an image on an ECU that is not meant for that particular ECU through leveraging the ECU serial.")
+  filepath_in_repo = firmware_fname
+  open(firmware_fname, 'w').write('Fresh firmware image')
+  add_target_to_imagerepo(firmware_fname, filepath_in_repo, release_counter, hardware_id)
+  write_to_live()
 
 
 def add_target_and_write_to_live(filename, file_content):

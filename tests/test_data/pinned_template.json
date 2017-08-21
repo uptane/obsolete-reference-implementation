@@ -1,10 +1,10 @@
 {
   "repositories": {
     "imagerepo": {
-      "mirrors": ["http://localhost:30301"]
+      "mirrors": ["file:///<full_client_dir>/tests/test_data/<temp_test_ecu>/imagerepo"]
     },
     "director": {
-      "mirrors": ["http://localhost:30401/111"]
+      "mirrors": ["file:///<full_client_dir>/tests/test_data/<temp_test_ecu>/director"]
     }
   },
   "delegations": [
