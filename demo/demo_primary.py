@@ -209,7 +209,8 @@ def create_primary_pinning_file():
   Returns the filename of the created file.
   """
 
-  pinnings = json.load(open(demo.DEMO_PRIMARY_PINNING_FNAME, 'r'))
+  with open(demo.DEMO_PRIMARY_PINNING_FNAME, 'r') as fobj:
+    pinnings = json.load(fobj)
 
   fname_to_create = os.path.join(
       demo.DEMO_DIR, 'pinned.json_primary_' + demo.get_random_string(5))
@@ -424,7 +425,9 @@ def register_self_with_director():
 
   print('Registering Primary ECU Serial and Key with Director.')
   server.register_ecu_serial(
-      primary_ecu.ecu_serial, primary_ecu.primary_key, _vin, True)
+      primary_ecu.ecu_serial,
+      uptane.common.public_key_from_canonical(primary_ecu.primary_key),
+      _vin, True)
   print(GREEN + 'Primary has been registered with the Director.' + ENDCOLORS)
 
 
