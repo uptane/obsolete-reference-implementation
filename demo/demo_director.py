@@ -182,6 +182,9 @@ def write_to_live(vin_to_update=None):
         os.path.join(repo_dir, 'metadata.livetemp'),
         os.path.join(repo_dir, 'metadata'))
 
+    refresh_metadata_for_encrypted_images_folder(vin)
+
+
 
 
 
@@ -593,25 +596,22 @@ def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
 
   # TODO: This should probably place the file into a common targets directory
   # that is then softlinked to all repositories.
-  #shutil.copy(target_fname, destination_filepath)
 
   if ecu_serial in inventory.get_registered_ecu_serials():
+    shutil.copy(target_fname, destination_filepath)
     print(inventory.get_ecu_public_key(ecu_serial))
     public_key_for_ecu = \
         inventory.get_ecu_public_key(ecu_serial)['keyval']['public']
-
-    #hashes['unencrypted_file_hashes'] = \
-        #director_service_instance.generate_hashes(target_fname)
 
     encrypted_target_data, encrypted_aes_key= \
         director_service_instance.encrypt_target(
         target_fname, public_key_for_ecu)
 
-    with open(destination_filepath, 'w') as f:
-      f.write(encrypted_target_data)
+    demo.DIRECTOR_ENCRYPTION = True
 
-    encrypted_hash = director_service_instance.generate_hashes(
-        destination_filepath)
+    create_new_folder_to_hold_encrypted_files(vin)
+    encrypted_hash, size_encrypted_file = write_encrypted_file_in_folder(
+        vin, encrypted_target_data, filepath_in_repo)
 
     print("PUBLIC KEY FOR ECU\n", public_key_for_ecu)
 
@@ -622,7 +622,69 @@ def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
   # This calls the appropriate vehicle repository.
     director_service_instance.add_target_for_ecu(
         vin, ecu_serial, destination_filepath, file_hashes = encrypted_hash,
-        encrypted_symmetric_key = encrypted_aes_key)
+        encrypted_symmetric_key = encrypted_aes_key, 
+        encrypted_file_size= size_encrypted_file)
+    
+
+
+
+
+def create_new_folder_to_hold_encrypted_files(vin):
+  """
+  Stores the encrypted images and the corresponding metadata in a special folder
+  that will be hosted by the director for the primary to access.
+  """
+  Host_folder_directory = os.path.join(
+      demo.DIRECTOR_REPO_DIR, demo.DIRECTOR_ENCRYPTED_IMAGES_FOLDER_NAME, vin)
+
+  if not os.path.exists(Host_folder_directory):
+    os.mkdir(Host_folder_directory)
+
+  if not os.path.exists(os.path.join(Host_folder_directory, 'targets')):
+    os.mkdir(os.path.join(Host_folder_directory, 'targets'))
+
+  refresh_metadata_for_encrypted_images_folder(vin)
+
+  
+
+
+
+def refresh_metadata_for_encrypted_images_folder(vin):
+  """
+  Changes the metadata files whenever new metadata has been added by copying the new
+  files to the folder
+  """
+  Host_folder_directory = os.path.join(
+      demo.DIRECTOR_REPO_DIR, demo.DIRECTOR_ENCRYPTED_IMAGES_FOLDER_NAME, vin)
+
+  if os.path.exists(os.path.join(Host_folder_directory, 'metadata')):
+    shutil.rmtree(os.path.join(Host_folder_directory, 'metadata'))
+
+  shutil.copytree(os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata'),
+      os.path.join(Host_folder_directory, 'metadata'))
+
+
+
+def write_encrypted_file_in_folder(vin, encrypted_target_data, filepath_in_repo):
+  """
+  Writes the encrypted file to be saved in the folder hosting encrypted images
+  """
+  Host_folder_directory = os.path.join(
+      demo.DIRECTOR_REPO_DIR, demo.DIRECTOR_ENCRYPTED_IMAGES_FOLDER_NAME, vin)
+
+  encrypted_image_copied = os.path.join(Host_folder_directory, 'targets', filepath_in_repo)
+  
+  with open(encrypted_image_copied, 'w') as f:
+    f.write(encrypted_target_data)
+
+  size_encrypted_file = os.path.getsize(encrypted_image_copied)
+
+  
+  encrypted_hash = director_service_instance.generate_hashes(
+        encrypted_image_copied)
+
+  return encrypted_hash, size_encrypted_file
+
 
 
 
@@ -648,8 +710,11 @@ def host():
     return
 
   # Prepare to host the director repo contents.
-
-  os.chdir(demo.DIRECTOR_REPO_DIR)
+  # if demo.DIRECTOR_ENCRYPTION == False:
+  #   os.chdir(demo.DIRECTOR_REPO_DIR)
+  # else:
+  print(demo.DIRECTOR_ENCRYPTED_REPO_DIR)
+  os.chdir(demo.DIRECTOR_ENCRYPTED_REPO_DIR)
 
   command = []
   if sys.version_info.major < 3: # Python 2 compatibility

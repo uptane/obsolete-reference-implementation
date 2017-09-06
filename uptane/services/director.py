@@ -525,7 +525,7 @@ class Director:
 
 
 
-  def add_target_for_ecu(self, vin, ecu_serial, target_filepath, file_hashes = None, encrypted_symmetric_key = None):
+  def add_target_for_ecu(self, vin, ecu_serial, target_filepath, file_hashes = None, encrypted_symmetric_key = None, encrypted_file_size = None):
     """
     Add a target to the repository for a vehicle, marked as being for a
     specific ECU.
@@ -549,14 +549,14 @@ class Director:
     #   raise uptane.UnknownECU('The ECU Serial provided, ' + repr(ecu_serial) +
     #       ' is not that of an ECU known to this Director.')
     custom_dic = {}
-    if file_hashes == None and encrypted_symmetric_key = None:
+    if file_hashes == None and encrypted_symmetric_key == None:
       self.vehicle_repositories[vin].targets.add_target(
           target_filepath, custom={'ecu_serial': ecu_serial})
     else:
-      custom_dic['encrypted_images'] = True
       custom_dic['ecu_serial'] = ecu_serial
       custom_dic['encrypted_file_hashes'] = file_hashes
       custom_dic['encrypted_symmetric_key'] = encrypted_symmetric_key
+      custom_dic['length_encrypted_file'] = encrypted_file_size
       print("Custom Dictionary", custom_dic)
       self.vehicle_repositories[vin].targets.add_target(
           target_filepath, custom = custom_dic)
@@ -630,7 +630,7 @@ class Director:
     encrypted_aes_key = self.encrypt_aes_key(ecu_public_key, aes_key)
     print('encrypted_data \n', encrypted_data,
         'encrypted_aes_key\n', encrypted_aes_key)
-    return (encrypted_data, encrypted_aes_key)
+    return (encrypted_data.decode("utf-8"), encrypted_aes_key.decode("utf-8"))
 
 
 

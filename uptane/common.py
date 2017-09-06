@@ -402,7 +402,8 @@ def canonical_key_from_pub_and_pri(key_pub, key_pri):
   assert key_pub['keytype'].encode('ascii','ignore') == \
      key_pub['keytype'].encode('ascii','ignore')
 
-  if key_pub['keytype'].encode('ascii','ignore') == 'rsa':
+  if key_pub['keytype'].encode('ascii','ignore') == 'rsa' or \
+      key_pub['keytype'] == 'rsa':
     key = rsa_canonical_key_from_pub_and_pri(key_pub, key_pri)
   else:
     key = ED25519_canonical_key_from_pub_and_pri(key_pub, key_pri)
