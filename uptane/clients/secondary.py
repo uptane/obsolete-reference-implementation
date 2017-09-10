@@ -39,6 +39,11 @@ import uptane.formats
 import uptane.common
 import uptane.encoding.asn1_codec as asn1_codec
 
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.PublicKey import RSA
+from Crypto import Random
+import binascii
+
 
 from uptane import GREEN, RED, YELLOW, ENDCOLORS
 
@@ -680,4 +685,157 @@ class Secondary(object):
     # validated and we can return.
     log.debug('Delivered target file has been fully validated: ' +
         repr(full_image_fname))
+
+
+
+
+
+  def validate_encrypted_image(self, image_fname):
+    """
+    Determines if the encrypted image with filename provided matches the 
+    expected file properties, based on the metadata we have previously 
+    validated (with fully_validate_metadata, stored in 
+    self.validated_targets_for_this_ecu). If this method completes without 
+    raising an exception, the image file is valid.
+
+    <Arguments>
+
+      image_fname
+        This is the filename of the image file to validate. It is expected
+        to match the filepath in the target file info (except without any
+        leading '/' character). It should, therefore, not include any
+        directory names except what is required to specify it within the
+        target namespace.
+        This file is expected to exist in the client directory
+        (self.full_client_dir), in a subdirectory called 'unverified_targets'.
+
+    <Exceptions>
+
+      uptane.Error
+        if the given filename does not match a filepath in the list of
+        validated targets for this ECU (that is, the target(s) for which we
+        have received validated instructions from the Director addressed to
+        this ECU to install, and for which target info (file size and hashes)
+        has been retrieved and fully validated)
+
+      tuf.DownloadLengthMismatchError
+        if the file does not have the expected length based on validated
+        target info.
+
+      tuf.BadHashError
+        if the file does not have the expected hash based on validated target
+        info
+
+      tuf.FormatError
+        if the given image_fname is not a path.
+
+    <Returns>
+      None.
+
+    <Side-Effects>
+      None.
+    """
+
+    tuf.formats.PATH_SCHEMA.check_match(image_fname)
+
+    full_image_fname = os.path.join(
+        self.full_client_dir, 'unverified_targets', image_fname)
+
+    # Get target info by looking up fname (filepath).
+
+    relevant_targetinfo = None
+
+    for targetinfo in self.validated_targets_for_this_ecu:
+      filepath = targetinfo['filepath']
+      if filepath[0] == '/':
+        filepath = filepath[1:]
+      if filepath == image_fname:
+        relevant_targetinfo = targetinfo
+
+    if relevant_targetinfo is None:
+      # TODO: Consider a more specific error class.
+      raise uptane.Error('Unable to find validated target info for the given '
+          'filename: ' + repr(image_fname) + '. Either metadata was not '
+          'successfully updated, or the Primary is providing the wrong image '
+          'file, or there was a very unlikely update to data on the Primary '
+          'that had updated metadata but not yet updated images (The window '
+          'for this is extremely small between two individually-atomic '
+          'renames), or there has been a programming error....')
+
+
+    # Check file length against trusted target info.
+    with open(full_image_fname, 'rb') as fobj:
+      tuf.client.updater.hard_check_file_length(
+          fobj,
+          relevant_targetinfo['fileinfo']['custom']['length_encrypted_file'])
+
+    # Check file hashes against trusted target info.
+    with open(full_image_fname, 'rb') as fobj:
+      tuf.client.updater.check_hashes(
+          fobj, # FIX
+          relevant_targetinfo['fileinfo']['custom']['encrypted_file_hashes'],
+          reset_fpointer=True) # Important for multiple hashes
+
+
+    # If no error has been raised at this point, the image file is fully
+    # validated and we can return.
+    log.debug('Delivered target file has been fully validated: ' +
+        repr(full_image_fname))
+
+
+
+  def decrypt_images(self, image_fname):
+    tuf.formats.PATH_SCHEMA.check_match(image_fname)
+
+    full_image_fname = os.path.join(
+        self.full_client_dir, 'unverified_targets', image_fname)
+
+    for targetinfo in self.validated_targets_for_this_ecu:
+      filepath = targetinfo['filepath']
+      if filepath[0] == '/':
+        filepath = filepath[1:]
+      if filepath == image_fname:
+        relevant_targetinfo = targetinfo
+
+
+    with open(full_image_fname, 'rb') as fobj:
+      content_file_encrypted = fobj.read()
+
+    content_file_encrypted = binascii.unhexlify(
+        content_file_encrypted)
+    # To convert the file back into the original binary encrypted
+    # format.
+
+    private_key = self.ecu_key['keyval']['private']
+
+    encrypted_aes_key = \
+        relevant_targetinfo \
+        ['fileinfo']['custom']['encrypted_symmetric_key']
+
+    print("Encrypted AES Key", encrypted_aes_key)
+
+    rsakey = RSA.importKey(private_key, passphrase = "pw")
+    rsakey = PKCS1_OAEP.new(rsakey)
+    decrypted_aes_key = rsakey.decrypt(
+      binascii.unhexlify(encrypted_aes_key))
+
+    print("Decrypted Key", decrypted_aes_key)
+
+    cipher = AES.new(
+        decrypted_aes_key, AES.MODE_CFB, Random.new().read(
+        AES.block_size))
+
+    decrypted_text = cipher.decrypt(
+        content_file_encrypted)[AES.block_size:]
+
+    print(decrypted_text)
+
+    with open(full_image_fname, 'w') as f:
+     f.write(decrypted_text.decode('utf-8'))
+
+
+
+
+
+
 

@@ -452,6 +452,73 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
 
 
 
+
+  def download_target(self, target, destination_directory):
+    """
+    Download function that downloads the encrypted targets for distribution
+    """
+    relevant_pinnings = self.updater._get_pinnings_for_target(
+        target['filepath'])
+    exceptions_from_all_delegations = []
+    print("Relevant pinnings", relevant_pinnings)
+
+    # for repo_list in relevant_pinnings:
+    #   assert 0 != len(repo_list), 'Programming error. ' + \
+    #       '(Should be impossible due to _get_pinnings_for_target() checks'
+
+    #   for repo_name in repo_list:
+    #     # This pinning may be a single-repo or multi-repo pinning. For each
+    #     # repository in this pinning, try downloading the target file.
+
+    list_of_noworkingmirror_exceptions = []
+    target_filepath = target['filepath']
+    trusted_length = target['fileinfo']['custom']['length_encrypted_file']
+    unencrypted_trusted_hashes = target['fileinfo']['hashes']
+    encrypted_trusted_hashes = \
+        target['fileinfo']['custom']['encrypted_file_hashes']
+    print("TargetFilepath", target_filepath)
+    print("Trusted length", trusted_length)
+    print("Encrypted hashes", encrypted_trusted_hashes)
+    try:
+      target_file_object = \
+          self.updater.repositories['director']._get_target_file(
+          target_filepath, trusted_length, encrypted_trusted_hashes)
+    except tuf.NoWorkingMirrorError as e:
+      exceptions_from_all_delegations.append(e)
+
+    else:
+      log.debug('Succeeded in downloading target ' +
+          repr(target['filepath']) + ' from repo director')
+
+    destination = os.path.join(destination_directory,
+                         target_filepath.lstrip(os.sep))
+    destination = os.path.abspath(destination)
+    target_dirpath = os.path.dirname(destination)
+
+    # When attempting to create the leaf directory of 'target_dirpath', ignore
+    # any exceptions raised if the root directory already exists.  All other
+    # exceptions potentially thrown by os.makedirs() are re-raised.
+    # Note: os.makedirs can raise OSError if the leaf directory already exists
+    # or cannot be created.
+    try:
+      os.makedirs(target_dirpath)
+    except OSError as e:
+      if e.errno == errno.EEXIST:
+        pass
+
+      else:
+        raise
+    print(target_file_object.read())
+    target_file_object.move(destination)
+      
+
+
+
+
+
+
+
+
   def primary_update_cycle(self):
     """
     Download fresh metadata and images for this vehicle, as instructed by the
@@ -484,6 +551,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     # Note that at this line, this target info is not yet validated with the
     # Image Repository: that is done a few lines down.
     directed_targets = self.get_target_list_from_director()
+    print("Directed targets\n", directed_targets)
 
     if not directed_targets:
       log.info('A correctly signed statement from the Director indicates that '
@@ -518,6 +586,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
         # for repo in targetinfos:
         #   tuf.formats.TARGETFILE_SCHEMA.check_match(targetinfos[repo])
         verified_targets.append(self.get_validated_target_info(target_filepath))
+        print("Verified Targets", verified_targets)
 
       except tuf.UnknownTargetError:
         log.warning(RED + 'Director has instructed us to download a target (' +
@@ -616,7 +685,8 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
       # still has it). (The second argument here is just where to put the
       # files.)
       try:
-        self.updater.download_target(target, full_targets_directory)
+        #self.updater.download_target(target, full_targets_directory)
+        self.download_target(target, full_targets_directory)
 
       except tuf.NoWorkingMirrorError as e:
         print('')

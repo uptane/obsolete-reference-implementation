@@ -272,6 +272,7 @@ def update_cycle():
   global secondary_ecu
   global current_firmware_fileinfo
   global attacks_detected
+  print("Secondary ECU Key", secondary_ecu.ecu_key)
 
   # Connect to the Primary
   pserver = xmlrpc_client.ServerProxy(
@@ -317,7 +318,7 @@ def update_cycle():
   # Now tell the Secondary reference implementation code where the archive file
   # is and let it expand and validate the metadata.
   secondary_ecu.process_metadata(archive_fname)
-
+  print("Works till here")
 
   # As part of the process_metadata call, the secondary will have saved
   # validated target info for targets intended for it in
@@ -415,7 +416,36 @@ def update_cycle():
 
   # Validate the image against the metadata.
   try:
-    secondary_ecu.validate_image(image_fname)
+    secondary_ecu.validate_encrypted_image(image_fname)
+  except tuf.DownloadLengthMismatchError:
+    print_banner(
+        BANNER_DEFENDED, color=WHITE+DARK_BLUE_BG,
+        text='Image from Primary failed to validate: length mismatch. Image: ' +
+        repr(image_fname), sound=TADA)
+    # TODO: Add length comparison instead, from error.
+    attacks_detected += 'Image from Primary failed to validate: length ' + \
+        'mismatch.\n'
+    generate_signed_ecu_manifest()
+    submit_ecu_manifest_to_primary()
+    return
+  except tuf.BadHashError:
+    print_banner(
+        BANNER_DEFENDED, color=WHITE+DARK_BLUE_BG,
+        text='Image from Primary failed to validate: hash mismatch. Image: ' +
+        repr(image_fname), sound=TADA)
+    # TODO: Add hash comparison instead, from error.
+    attacks_detected += 'Image from Primary failed to validate: hash ' + \
+        'mismatch.\n'
+    generate_signed_ecu_manifest()
+    submit_ecu_manifest_to_primary()
+    return
+
+
+  secondary_ecu.decrypt_images(image_fname)
+
+
+  try:
+  	secondary_ecu.validate_image(image_fname)
   except tuf.DownloadLengthMismatchError:
     print_banner(
         BANNER_DEFENDED, color=WHITE+DARK_BLUE_BG,

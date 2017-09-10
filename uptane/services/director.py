@@ -582,7 +582,7 @@ class Director:
     Creates a randomized 16 bit key everytime an ECU target is assigned.
     """
     aeskey = Random.new().read(16)
-    #print('1',len(aeskey))
+    print('1',aeskey, binascii.hexlify(aeskey))
     iv = Random.new().read(AES.block_size)
     #print('2',iv)
     cipher = AES.new(aeskey, AES.MODE_CFB, iv)
