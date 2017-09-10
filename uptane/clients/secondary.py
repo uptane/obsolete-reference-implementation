@@ -812,14 +812,10 @@ class Secondary(object):
         relevant_targetinfo \
         ['fileinfo']['custom']['encrypted_symmetric_key']
 
-    print("Encrypted AES Key", encrypted_aes_key)
-
     rsakey = RSA.importKey(private_key, passphrase = "pw")
     rsakey = PKCS1_OAEP.new(rsakey)
     decrypted_aes_key = rsakey.decrypt(
       binascii.unhexlify(encrypted_aes_key))
-
-    print("Decrypted Key", decrypted_aes_key)
 
     cipher = AES.new(
         decrypted_aes_key, AES.MODE_CFB, Random.new().read(
@@ -827,8 +823,6 @@ class Secondary(object):
 
     decrypted_text = cipher.decrypt(
         content_file_encrypted)[AES.block_size:]
-
-    print(decrypted_text)
 
     with open(full_image_fname, 'w') as f:
      f.write(decrypted_text.decode('utf-8'))

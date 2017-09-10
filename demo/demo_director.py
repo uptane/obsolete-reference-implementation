@@ -592,14 +592,11 @@ def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
 
   print('Copying target file into place.')
   destination_filepath = os.path.join(repo_dir, 'targets', filepath_in_repo)
-  print(destination_filepath)
-
   # TODO: This should probably place the file into a common targets directory
   # that is then softlinked to all repositories.
 
   if ecu_serial in inventory.get_registered_ecu_serials():
     shutil.copy(target_fname, destination_filepath)
-    print(inventory.get_ecu_public_key(ecu_serial))
     public_key_for_ecu = \
         inventory.get_ecu_public_key(ecu_serial)['keyval']['public']
 
@@ -612,10 +609,6 @@ def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
     create_new_folder_to_hold_encrypted_files(vin)
     encrypted_hash, size_encrypted_file = write_encrypted_file_in_folder(
         vin, encrypted_target_data, filepath_in_repo)
-
-    print("PUBLIC KEY FOR ECU\n", public_key_for_ecu)
-
-    print("Encrypted AES Key", encrypted_aes_key)
 
     print('Adding target ' + repr(target_fname) + ' for ECU ' + repr(ecu_serial))
 

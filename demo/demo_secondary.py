@@ -272,7 +272,6 @@ def update_cycle():
   global secondary_ecu
   global current_firmware_fileinfo
   global attacks_detected
-  print("Secondary ECU Key", secondary_ecu.ecu_key)
 
   # Connect to the Primary
   pserver = xmlrpc_client.ServerProxy(
@@ -318,7 +317,6 @@ def update_cycle():
   # Now tell the Secondary reference implementation code where the archive file
   # is and let it expand and validate the metadata.
   secondary_ecu.process_metadata(archive_fname)
-  print("Works till here")
 
   # As part of the process_metadata call, the secondary will have saved
   # validated target info for targets intended for it in

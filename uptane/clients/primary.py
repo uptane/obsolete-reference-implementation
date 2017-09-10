@@ -460,8 +460,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     relevant_pinnings = self.updater._get_pinnings_for_target(
         target['filepath'])
     exceptions_from_all_delegations = []
-    print("Relevant pinnings", relevant_pinnings)
-
     # for repo_list in relevant_pinnings:
     #   assert 0 != len(repo_list), 'Programming error. ' + \
     #       '(Should be impossible due to _get_pinnings_for_target() checks'
@@ -476,9 +474,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     unencrypted_trusted_hashes = target['fileinfo']['hashes']
     encrypted_trusted_hashes = \
         target['fileinfo']['custom']['encrypted_file_hashes']
-    print("TargetFilepath", target_filepath)
-    print("Trusted length", trusted_length)
-    print("Encrypted hashes", encrypted_trusted_hashes)
     try:
       target_file_object = \
           self.updater.repositories['director']._get_target_file(
@@ -508,7 +503,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
 
       else:
         raise
-    print(target_file_object.read())
     target_file_object.move(destination)
       
 
@@ -551,7 +545,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     # Note that at this line, this target info is not yet validated with the
     # Image Repository: that is done a few lines down.
     directed_targets = self.get_target_list_from_director()
-    print("Directed targets\n", directed_targets)
 
     if not directed_targets:
       log.info('A correctly signed statement from the Director indicates that '
@@ -586,7 +579,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
         # for repo in targetinfos:
         #   tuf.formats.TARGETFILE_SCHEMA.check_match(targetinfos[repo])
         verified_targets.append(self.get_validated_target_info(target_filepath))
-        print("Verified Targets", verified_targets)
 
       except tuf.UnknownTargetError:
         log.warning(RED + 'Director has instructed us to download a target (' +

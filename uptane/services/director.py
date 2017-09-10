@@ -557,7 +557,6 @@ class Director:
       custom_dic['encrypted_file_hashes'] = file_hashes
       custom_dic['encrypted_symmetric_key'] = encrypted_symmetric_key
       custom_dic['length_encrypted_file'] = encrypted_file_size
-      print("Custom Dictionary", custom_dic)
       self.vehicle_repositories[vin].targets.add_target(
           target_filepath, custom = custom_dic)
 
@@ -582,13 +581,9 @@ class Director:
     Creates a randomized 16 bit key everytime an ECU target is assigned.
     """
     aeskey = Random.new().read(16)
-    print('1',aeskey, binascii.hexlify(aeskey))
     iv = Random.new().read(AES.block_size)
-    #print('2',iv)
     cipher = AES.new(aeskey, AES.MODE_CFB, iv)
-    #print('3',cipher)
     msg = iv + cipher.encrypt(open(file_to_encrypt, 'r').read())
-    print('4', msg)
     return (binascii.hexlify(msg), aeskey)
 
 
@@ -601,13 +596,9 @@ class Director:
     Returns the key which will be decrypted by the designated ECU using
     its private key.
     """
-    print(public_key)
     public_rsa_key = RSA.importKey(public_key)
-    #print('5',rsakey)
     public_rsa_key = PKCS1_OAEP.new(public_rsa_key)
-    #print('6',rsakey)
     encrypted = public_rsa_key.encrypt(aes_key)
-    print('7',encrypted)
     return binascii.hexlify(encrypted)
 
 
@@ -628,8 +619,6 @@ class Director:
     """
     encrypted_data, aes_key = self.AES_Cipher(target_fname)
     encrypted_aes_key = self.encrypt_aes_key(ecu_public_key, aes_key)
-    print('encrypted_data \n', encrypted_data,
-        'encrypted_aes_key\n', encrypted_aes_key)
     return (encrypted_data.decode("utf-8"), encrypted_aes_key.decode("utf-8"))
 
 
