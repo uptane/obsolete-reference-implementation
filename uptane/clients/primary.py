@@ -273,8 +273,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(time)
     uptane.formats.VIN_SCHEMA.check_match(vin)
     uptane.formats.ECU_SERIAL_SCHEMA.check_match(ecu_serial)
-    uptane.formats.HARDWARE_ID_SCHEMA.check_match(hardware_id)
-    uptane.formats.RELEASE_COUNTER_SCHEMA.check_match(release_counter)
     tuf.formats.ANYKEY_SCHEMA.check_match(timeserver_public_key)
     tuf.formats.ANYKEY_SCHEMA.check_match(primary_key)
     # TODO: Should also check that primary_key is a private key, not a
@@ -323,12 +321,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     if director_repo_name not in self.updater.pinned_metadata['repositories']:
       raise uptane.Error('Given name for the Director repository is not a '
           'known repository, according to the pinned metadata from pinned.json')
-
-
-  def __str__(self):
-    return("VIN: {}, ECU_SERIAL: {}, HARDWARE_ID: {}, \
-        RELEASE_COUNTER: {}".format(self.vin, self.ecu_serial, \
-        self.hardware_id, self.release_counter))
 
 
   def refresh_toplevel_metadata_from_repositories(self):
@@ -456,8 +448,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
           'initialization of this primary object?')
 
     director_target = validated_target_info[self.director_repo_name]
-    temp_release_counter = None
-    temp_hardware_id = None
 
     for repository_name in validated_target_info.keys():
       current_target = validated_target_info[repository_name]
@@ -466,41 +456,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
         raise uptane.Error('{} repo failed to include the custom field in a \
             target. \nTarget metadata was: {}'.format(repository_name, \
             repr(current_target)))
-        continue
-
-      custom_target_metadata = \
-          validated_target_info[repository_name]['fileinfo']['custom']
-      current_target_hardware_id = custom_target_metadata['hardware_id']
-      current_target_release_counter = custom_target_metadata['release_counter']
-      if 'hardware_id' in custom_target_metadata:
-        if temp_hardware_id == None:
-          temp_hardware_id = current_target_hardware_id
-        elif temp_hardware_id != current_target_hardware_id:
-          raise uptane.HardwareIDMismatch('Bad value for the field \
-              hardware_ID in the that did not correspond the value in \
-              the other repos. Value did not match between the director \
-              and the other repos. The value of director target is {}'.format(
-              repr(director_target)))
-          continue
-      else:
-        raise uptane.Error('{} repo failed to include the hardware ID field \
-            in the custom field of the target. \nTarget metadata was:\
-            {}'.format(repository_name, repr(current_target)))
-        continue
-
-      if 'release_counter' in custom_target_metadata:
-        if temp_release_counter == None:
-          temp_release_counter = current_target_release_counter
-        elif temp_release_counter != current_target_release_counter:
-          raise uptane.ImageRollBack('Bad value for the field release_counter \
-             that did not correspond the value in the other repos. Value \
-             did not match between the director and the other repos. \
-             The value of director target is {}'.format(repr(director_target)))
-          continue
-      else:
-        raise uptane.Error('{} repo failed to include the release counter \
-            field in the custom field of the target. \nTarget metadata was:\
-            {}'.format(repository_name, repr(current_target)))
         continue
 
     # Defensive coding: this should already have been checked.
@@ -607,47 +562,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
         import time
         time.sleep(3)
         # End demo code.
-      except uptane.HardwareIDMismatch:
-        log.warning(RED + 'Dorector has instructed us to download a target (' +
-            target_filepath + ') that is not validated by the combination of '
-            'Image + Director Repositories. That update IS BEING SKIPPED. It '
-            'the hardware IDs do not match between image and director '
-            'repositories. Try again, but if this happens often, you may be '
-            'connecting to an untrustworthy Director, or there may be an '
-            'untrustworthy Image Repository, or the Director and Image '
-            'Repository may be out of sync.' + ENDCOLORS)
-
-        self.log_primary_exceptions(
-          target_filepath, target_ecu, uptane.HardwareIDMismatch)
-
-        #Commenting out the following because unsure if banners should
-        # be in the reference implementation of pimraries or not
-        #print_banner(BANNER_DEFENDED, color=WHITE+DARK_BLUE_BG,
-        #      text='The Director has instructed us to download an image'
-        #      ' that is not meant for the stated ECU. HardwareIDdoes not'
-        #      ' match with other repositorie. This image has'
-        #      ' been rejected.', sound=TADA)
-
-      except uptane.ImageRollBack:
-        log.warning(RED + 'Dorector has instructed us to download a target (' +
-            target_filepath + ') that is not validated by the combination of '
-            'Image + Director Repositories. That update IS BEING SKIPPED. It '
-            'the release counters do not match between image and director '
-            'repositories. Try again, but if this happens often, you may be '
-            'connecting to an untrustworthy Director, or there may be an '
-            'untrustworthy Image Repository, or the Director and Image '
-            'Repository may be out of sync.' + ENDCOLORS)
-
-        self.log_primary_exceptions(
-          target_filepath, target_ecu, uptane.ImageRollBack)
-
-        #Commenting out the following because unsure if banners should
-        # be in the reference implementation of pimraries or not
-        #print_banner(BANNER_DEFENDED, color=WHITE+DARK_BLUE_BG,
-        #      text='The Director has instructed us to download an image'
-        #      ' that has a bad release counter and does not match with '
-        #      ' other repositories. This image has'
-        #      ' been rejected.', sound=TADA)
 
     # # Grab a filepath from each of the dicts of target file infos. (Each dict
     # # corresponds to one file, and the filepaths in all the infos in that dict
