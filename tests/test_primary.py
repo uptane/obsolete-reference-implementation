@@ -11,7 +11,7 @@
 from __future__ import unicode_literals
 
 import uptane # Import before TUF modules; may change tuf.conf values.
-
+from io import open # To add support for Python 2
 import unittest
 import os.path
 import time
@@ -46,11 +46,19 @@ TEST_IMAGE_REPO_ROOT_FNAME = os.path.join(
 TEST_PINNING_FNAME = os.path.join(TEST_DATA_DIR, 'pinned.json')
 TEMP_CLIENT_DIR = os.path.join(TEST_DATA_DIR, 'temp_test_primary')
 
+# #Source to copy all the local metadata to the TEMP_CLIENT_DIR
+# SOURCE_FOR_LOCAL_METADATA = os.path.join(uptane.WORKING_DIR, 'samples', 'metadata_samples_long_expiry', 'updates_w_custom_field_to_one_ecu_bad_director', 'full_metadata_archive')
+# #Source to copy all the target files to TEMP_CLIENT_DIR
+# SOURCE_FOR_LOCAL_TARGETS = os.path.join(uptane.WORKING_DIR,'demo', "images")
+
+
 # Changing some of these values would require producing new signed sample data
 # from the Timeserver or a Secondary.
 nonce = 5
 vin = '000'
 primary_ecu_serial = '00000'
+primary_hardware_id = "Infotainment101"
+primary_release_counter = 1
 
 
 
@@ -106,6 +114,12 @@ class TestPrimary(unittest.TestCase):
     cls.initial_time = tuf.formats.unix_timestamp_to_datetime(
         int(time.time())).isoformat() + 'Z'
     tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(cls.initial_time)
+
+
+    mirror = pinnings['repositories'][repo_name]['mirrors'][0]
+    mirror = mirror.replace('<full_client_dir>', uptane.WORKING_DIR)
+    mirror = mirror.replace('<temp_test_ecu>', TEMP_PRIMARY_FOLDER)
+    pinnings['repositories'][repo_name]['mirrors'][0] = mirror
 
 
 
@@ -267,19 +281,27 @@ class TestPrimary(unittest.TestCase):
     self.assertEqual([], TestPrimary.instance.nonces_sent)
 
     sample_ecu_manifest = {
-        "signatures": [{
-          "method": "ed25519",
-          "sig": "df043006d4322a386cf85a6761a96bb8c92b2a41f4a4201badb8aae6f6dc17ef930addfa96a3d17f20533a01c158a7a33e406dd8291382a1bbab772bd2fa9804",
-          "keyid": "49309f114b857e4b29bfbff1c1c75df59f154fbc45539b2eb30c8a867843b2cb"}],
-        "signed": {
-          "timeserver_time": "2016-10-14T16:06:03Z",
-          "installed_image": {
-            "filepath": "/file2.txt", "fileinfo": {
-              "hashes": {"sha256": "3910b632b105b1e03baa9780fc719db106f2040ebfe473c66710c7addbb2605a", "sha512": "e2ebe151d7f357fcc6b0789d9e029bbf13310e98bc4d15585c1e90ea37c2c7181306f834342080ef007d71439bdd03fb728186e6d1e9eb51fdddf16f76301cef"},
-            "length": 21}},
-          "previous_timeserver_time": "2016-10-14T16:06:03Z",
-          "ecu_serial": "ecu11111",
-          "attacks_detected": ""}}
+    	'signatures': [{
+    	'keyid': '49309f114b857e4b29bfbff1c1c75df59f154fbc45539b2eb30c8a867843b2cb',
+    	'method': 'ed25519',
+      'sig': '52d19725155ccdbcabb37d016508ec0f5adcc0c16f24f1f16d6e1f71396991c4aa28a737778e3231d596cfdffc79b9e5212c8ad4bd8cd02aff7f41e803d94d0e'}],
+ 			'signed': {
+ 						'attacks_detected': '',
+            'ecu_serial': 'ecu11111',
+            'hardware_id': 'SecondaryPotato101',
+            'installed_image': {
+            	'fileinfo':
+            		{
+            			'hashes': {
+            				'sha256':
+            					'6b9f987226610bfed08b824c93bf8b2f59521fce9a2adef80c495f363c1c9c44',
+                    'sha512': '706c283972c5ae69864b199e1cdd9b4b8babc14f5a454d0fd4d3b35396a04ca0b40af731671b74020a738b5108a78deb032332c36d6ae9f31fae2f8a70f7e1ce'},
+                 'length': 37},
+                                'filepath': '/secondary_firmware.txt'},
+            'previous_timeserver_time': '2017-07-24T16:22:51Z',
+            'release_counter': 1,
+            'timeserver_time': '2017-07-24T16:22:51Z'}}
+
 
     # Try using the wrong vin.
     with self.assertRaises(uptane.Error):
@@ -517,8 +539,32 @@ class TestPrimary(unittest.TestCase):
     #       Director and Image Repo. Don't expect an actual server to be
     #       running. This will probably entail modification to the pinned.json
     #       file to point it to a local directory instead of a remote server.
-    pass
 
+
+    # Testing this requires that we have a Director server up and running.
+    # That seems outside of the scope of this test and more of a subject for
+    # integration tests.
+    # TODO: Decide whether or not to spin up a Director server within this
+    # test.
+    secondary_w_update_errors = "BCUdemocar"
+    secondary_wo_update_errors = "TCUdemocar"
+    target_bad_release = '/BCU1.1.txt'
+    target_bad_hardware_id = '/BCU1.2.txt'
+    target_no_error = '/TCU1.1.txt'
+    primary_instance.register_new_secondary(
+    	secondary_w_update_errors)
+    primary_instance.register_new_secondary(
+    	secondary_wo_update_errors)
+    self.assertIn(
+    	secondary_wo_update_errors, primary_instance.my_secondaries)
+    self.assertIn(
+    	secondary_w_update_errors, primary_instance.my_secondaries)
+    with self.assertRaises(uptane.ImageRollBack):
+    	primary_instance.get_validated_target_info(target_bad_release)
+    with self.assertRaises(uptane.HardwareIDMismatch):
+    	primary_instance.get_validated_target_info(target_bad_hardware_id)
+    # One with no error
+    primary_instance.get_validated_target_info(target_no_error)
 
 
 
@@ -535,6 +581,65 @@ class TestPrimary(unittest.TestCase):
 
 
 
+
+
+  def test_55_update_exists_for_ecu(self):
+    pass
+
+    # secondary_wo_update = "TCU222" #Secondary that will be registered #w/ primary as secondaries but will not listed by targets/director
+    # #for any updates
+    # unknown_secondary = "TCU221" #Secondary that will be not registered
+    # #w/ primary as secondaries and will not listed by targets/director
+    # #for any updates
+    # secondary_w_update = "TCUdemocar" #Secondary that will be registered
+    # # w/ primary as secondaries and will be listed by targets/director
+    # # for updates.
+    # bad_secondary_ecu_name = 5 #Invalid ECU Serial for a secondary
+
+    # # Registering valid names
+    # primary_instance.register_new_secondary(secondary_wo_update)
+    # primary_instance.register_new_secondary(secondary_w_update)
+
+    # # Registering already registered names for testing lines in register_new_secondary()
+    # primary_instance.register_new_secondary(secondary_wo_update)
+
+    # # Trying to register an invalid name
+    # with self.assertRaises(tuf.FormatError):
+    #   primary_instance.register_new_secondary(
+    #   	bad_secondary_ecu_name)
+
+    # #Asserting that as long as name is in a valid format it will be registered by the primary as a secondary.
+    # self.assertIn(
+    # 	secondary_wo_update, primary_instance.my_secondaries)
+    # self.assertIn(
+    # 	secondary_w_update, primary_instance.my_secondaries)
+
+    # with self.assertRaises(uptane.UnknownECU):
+    #   primary_instance._check_ecu_serial(unknown_secondary)
+
+    # # Running a primary update cycle so it process all the files required for a establishing update cycle
+    # primary_instance.primary_update_cycle()
+
+    # #Trying to get updates for an unregistered unknown ECU
+    # with self.assertRaises(uptane.UnknownECU):
+    #   primary_instance.update_exists_for_ecu(unknown_secondary)
+
+    # #Trying to get updates for a registered secondary that is not listed by targets for updates
+    # self.assertFalse(primary_instance.update_exists_for_ecu(
+    # 		secondary_wo_update))
+
+    # #Trying to get updates for a registered secondary that is listed by targets for updates
+    # self.assertTrue(primary_instance.update_exists_for_ecu(
+    # 		secondary_w_update))
+
+    # # delete pinned.json file because new pinned.json will be created depending on the current working directory of uptane every time the tests are run
+    # #os.remove(TEST_TEMP_PINNING_FNAME)
+
+
+
+
+    def test_60_hardware_id_attack(self):
+      pass
 
 
 # Run unit test.

@@ -18,6 +18,7 @@ Please see README.md for further instructions.
 from __future__ import print_function
 from __future__ import unicode_literals
 from io import open
+from pprint import pprint
 
 import demo
 import uptane # Import before TUF modules; may change tuf.conf values.
@@ -60,6 +61,8 @@ CLIENT_DIRECTORY = None
 #_client_directory_name = 'temp_primary' # name for this Primary's directory
 _vin = '111'
 _ecu_serial = '11111'
+_hardware_id = 'Infotainment111'
+_release_counter = 0
 # firmware_filename = 'infotainment_firmware.txt'
 
 
@@ -93,6 +96,8 @@ def clean_slate(
     # client_directory_name=None,
     vin=_vin,
     ecu_serial=_ecu_serial,
+    release_counter = _release_counter,
+    hardware_id = _hardware_id,
     c_interface=False):
   """
   """
@@ -104,6 +109,8 @@ def clean_slate(
   global use_can_interface
   _vin = vin
   _ecu_serial = ecu_serial
+  _hardware_id = hardware_id
+  _release_counter = release_counter
   use_can_interface = c_interface
 
   # if client_directory_name is not None:
@@ -155,6 +162,8 @@ def clean_slate(
       ecu_serial=_ecu_serial,
       primary_key=ecu_key,
       time=clock,
+      hardware_id = _hardware_id,
+      release_counter = _release_counter,
       timeserver_public_key=key_timeserver_pub)
 
 
@@ -335,6 +344,8 @@ def update_cycle():
   try:
     primary_ecu.primary_update_cycle()
 
+    #print("\nUPDATE CYCLE SUCCESSFUL\n")
+
   # Print a REPLAY or DEFENDED banner if ReplayedMetadataError or
   # BadSignatureError is raised by primary_update_cycle().  These banners are
   # only triggered for bad Timestamp metadata, and all other exception are
@@ -357,12 +368,26 @@ def update_cycle():
 
         else:
           raise
+  except uptane.ImageRollBack:
+    print_banner(BANNER_DEFENDED, color=WHITE+DARK_BLUE_BG,
+              text='The Director has instructed us to download an image'
+              ' that has a bad release counter and does not match with '
+              ' other repositories. This image has'
+              ' been rejected.', sound=TADA)
+  except uptane.HardwareIDMismatch:
+    print_banner(BANNER_DEFENDED, color=WHITE+DARK_BLUE_BG,
+              text='The Director has instructed us to download an image'
+              ' that is not meant for the stated ECU. HardwareIDdoes not'
+              ' match with other repositorie. This image has'
+              ' been rejected.', sound=TADA)
+
 
   # All targets have now been downloaded.
 
 
   # Generate and submit vehicle manifest.
-  generate_signed_vehicle_manifest()
+  pprint(generate_signed_vehicle_manifest())
+  print(primary_ecu)
   submit_vehicle_manifest_to_director()
 
 
@@ -403,17 +428,16 @@ def submit_vehicle_manifest_to_director(signed_vehicle_manifest=None):
         signed_vehicle_manifest)
 
 
+
   server = xmlrpc_client.ServerProxy(
       'http://' + str(demo.DIRECTOR_SERVER_HOST) + ':' +
       str(demo.DIRECTOR_SERVER_PORT))
 
   print("Submitting the Primary's manifest to the Director.")
-
   server.submit_vehicle_manifest(
       primary_ecu.vin,
       primary_ecu.ecu_serial,
       signed_vehicle_manifest)
-
 
   print(GREEN + 'Submission of Vehicle Manifest complete.' + ENDCOLORS)
 

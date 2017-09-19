@@ -35,12 +35,17 @@ VIN_SCHEMA = SCHEMA.AnyString()
 #     vin = VIN_SCHEMA)
 ECU_SERIAL_SCHEMA = SCHEMA.AnyString() # Instead, for now, we'll go with an ecu serial number.
 
+HARDWARE_ID_SCHEMA = SCHEMA.AnyString()
+
+RELEASE_COUNTER_SCHEMA = SCHEMA.Integer(lo=0)
 
 # Information specifying the target(s) installed on a given ECU.
 # This object corresponds to not "ECUVersionManifest" in the Uptane
 # Implementation Specification, but the signed contents of that object.
 ECU_VERSION_MANIFEST_SCHEMA = SCHEMA.Object(
     ecu_serial = ECU_SERIAL_SCHEMA,
+    hardware_id = HARDWARE_ID_SCHEMA,
+    release_counter = RELEASE_COUNTER_SCHEMA,
     installed_image = TARGETFILE_SCHEMA,
     timeserver_time = ISO8601_DATETIME_SCHEMA,
     previous_timeserver_time = ISO8601_DATETIME_SCHEMA,
