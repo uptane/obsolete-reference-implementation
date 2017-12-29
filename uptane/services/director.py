@@ -552,6 +552,7 @@ class Director:
     if file_hashes == None and encrypted_symmetric_key == None:
       self.vehicle_repositories[vin].targets.add_target(
           target_filepath, custom={'ecu_serial': ecu_serial})
+
     else:
       custom_dic['ecu_serial'] = ecu_serial
       custom_dic['encrypted_file_hashes'] = file_hashes

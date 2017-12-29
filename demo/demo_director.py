@@ -56,6 +56,8 @@ import atexit # to kill server process on exit()
 
 KNOWN_VINS = ['111', '112', '113', 'democar']
 
+LOG_PREFIX = uptane.TEAL_BG + 'Director:' + ENDCOLORS + ' '
+
 # Dynamic global objects
 #repo = None
 repo_server_process = None
@@ -610,7 +612,8 @@ def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
     encrypted_hash, size_encrypted_file = write_encrypted_file_in_folder(
         vin, encrypted_target_data, filepath_in_repo)
 
-    print('Adding target ' + repr(target_fname) + ' for ECU ' + repr(ecu_serial))
+    print(LOG_PREFIX + 'Adding target ' + repr(target_fname) + ' for ECU ' +
+        repr(ecu_serial))
 
   # This calls the appropriate vehicle repository.
     director_service_instance.add_target_for_ecu(
