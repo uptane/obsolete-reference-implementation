@@ -525,7 +525,9 @@ class Director:
 
 
 
-  def add_target_for_ecu(self, vin, ecu_serial, target_filepath, file_hashes = None, encrypted_symmetric_key = None, encrypted_file_size = None):
+  def add_target_for_ecu(self, vin, ecu_serial, target_filepath,
+      file_hashes = None, encrypted_symmetric_key = None,
+      encrypted_file_size = None):
     """
     Add a target to the repository for a vehicle, marked as being for a
     specific ECU.
