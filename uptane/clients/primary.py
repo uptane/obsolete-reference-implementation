@@ -460,13 +460,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     relevant_pinnings = self.updater._get_pinnings_for_target(
         target['filepath'])
     exceptions_from_all_delegations = []
-    # for repo_list in relevant_pinnings:
-    #   assert 0 != len(repo_list), 'Programming error. ' + \
-    #       '(Should be impossible due to _get_pinnings_for_target() checks'
-
-    #   for repo_name in repo_list:
-    #     # This pinning may be a single-repo or multi-repo pinning. For each
-    #     # repository in this pinning, try downloading the target file.
 
     list_of_noworkingmirror_exceptions = []
     target_filepath = target['filepath']
@@ -504,10 +497,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
       else:
         raise
     target_file_object.move(destination)
-      
-
-
-
 
 
 
@@ -575,9 +564,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     for targetinfo in directed_targets:
       target_filepath = targetinfo['filepath']
       try:
-        # targetinfos = self.get_validated_target_info(target_filepath)
-        # for repo in targetinfos:
-        #   tuf.formats.TARGETFILE_SCHEMA.check_match(targetinfos[repo])
         verified_targets.append(self.get_validated_target_info(target_filepath))
 
       except tuf.UnknownTargetError:
@@ -677,7 +663,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
       # still has it). (The second argument here is just where to put the
       # files.)
       try:
-        #self.updater.download_target(target, full_targets_directory)
         self.download_target(target, full_targets_directory)
 
       except tuf.NoWorkingMirrorError as e:

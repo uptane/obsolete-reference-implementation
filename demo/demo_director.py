@@ -585,7 +585,7 @@ def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
 
   if vin not in director_service_instance.vehicle_repositories:
     raise uptane.UnknownVehicle('The VIN provided, ' + repr(vin) + ' is not '
-    'that of a vehicle known to this Director.')
+      'that of a vehicle known to this Director.')
 
   repo = director_service_instance.vehicle_repositories[vin]
   repo_dir = repo._repository_directory
@@ -615,9 +615,9 @@ def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
   # This calls the appropriate vehicle repository.
     director_service_instance.add_target_for_ecu(
         vin, ecu_serial, destination_filepath, file_hashes = encrypted_hash,
-        encrypted_symmetric_key = encrypted_aes_key, 
+        encrypted_symmetric_key = encrypted_aes_key,
         encrypted_file_size= size_encrypted_file)
-    
+
 
 
 
@@ -627,34 +627,34 @@ def create_new_folder_to_hold_encrypted_files(vin):
   Stores the encrypted images and the corresponding metadata in a special folder
   that will be hosted by the director for the primary to access.
   """
-  Host_folder_directory = os.path.join(
+  host_folder_directory = os.path.join(
       demo.DIRECTOR_REPO_DIR, demo.DIRECTOR_ENCRYPTED_IMAGES_FOLDER_NAME, vin)
 
-  if not os.path.exists(Host_folder_directory):
-    os.mkdir(Host_folder_directory)
+  if not os.path.exists(host_folder_directory):
+    os.mkdir(host_folder_directory)
 
-  if not os.path.exists(os.path.join(Host_folder_directory, 'targets')):
-    os.mkdir(os.path.join(Host_folder_directory, 'targets'))
+  if not os.path.exists(os.path.join(host_folder_directory, 'targets')):
+    os.mkdir(os.path.join(host_folder_directory, 'targets'))
 
   refresh_metadata_for_encrypted_images_folder(vin)
 
-  
+
 
 
 
 def refresh_metadata_for_encrypted_images_folder(vin):
   """
-  Changes the metadata files whenever new metadata has been added by copying the new
-  files to the folder
+  Changes the metadata files whenever new metadata has been added by copying 
+  the new files to the folder
   """
-  Host_folder_directory = os.path.join(
+  host_folder_directory = os.path.join(
       demo.DIRECTOR_REPO_DIR, demo.DIRECTOR_ENCRYPTED_IMAGES_FOLDER_NAME, vin)
 
-  if os.path.exists(os.path.join(Host_folder_directory, 'metadata')):
-    shutil.rmtree(os.path.join(Host_folder_directory, 'metadata'))
+  if os.path.exists(os.path.join(host_folder_directory, 'metadata')):
+    shutil.rmtree(os.path.join(host_folder_directory, 'metadata'))
 
   shutil.copytree(os.path.join(demo.DIRECTOR_REPO_DIR, vin, 'metadata'),
-      os.path.join(Host_folder_directory, 'metadata'))
+      os.path.join(host_folder_directory, 'metadata'))
 
 
 
@@ -662,17 +662,16 @@ def write_encrypted_file_in_folder(vin, encrypted_target_data, filepath_in_repo)
   """
   Writes the encrypted file to be saved in the folder hosting encrypted images
   """
-  Host_folder_directory = os.path.join(
+  host_folder_directory = os.path.join(
       demo.DIRECTOR_REPO_DIR, demo.DIRECTOR_ENCRYPTED_IMAGES_FOLDER_NAME, vin)
 
-  encrypted_image_copied = os.path.join(Host_folder_directory, 'targets', filepath_in_repo)
-  
+  encrypted_image_copied = os.path.join(host_folder_directory, 'targets', filepath_in_repo)
+
   with open(encrypted_image_copied, 'w') as f:
     f.write(encrypted_target_data)
 
   size_encrypted_file = os.path.getsize(encrypted_image_copied)
 
-  
   encrypted_hash = director_service_instance.generate_hashes(
         encrypted_image_copied)
 
@@ -703,10 +702,7 @@ def host():
     return
 
   # Prepare to host the director repo contents.
-  # if demo.DIRECTOR_ENCRYPTION == False:
-  #   os.chdir(demo.DIRECTOR_REPO_DIR)
-  # else:
-  print(demo.DIRECTOR_ENCRYPTED_REPO_DIR)
+
   os.chdir(demo.DIRECTOR_ENCRYPTED_REPO_DIR)
 
   command = []

@@ -20,7 +20,6 @@ import hashlib
 # imports asn1_codec.
 import uptane.encoding.asn1_codec as asn1_codec
 import uptane.formats
-from pprint import pprint
 
 # Both key types below are supported, but issues may be encountered with RSA
 # if tuf.conf.METADATA_FORMAT is 'der' (rather than 'json').
@@ -385,7 +384,6 @@ def verify_signature_over_metadata(
 
 
 
-
 def canonical_key_from_pub_and_pri(key_pub, key_pri):
   """
   Turn this into a canonical key matching tuf.formats.ANYKEY_SCHEMA, with
@@ -412,6 +410,8 @@ def canonical_key_from_pub_and_pri(key_pub, key_pri):
 
 
 
+
+
 def rsa_canonical_key_from_pub_and_pri(key_pub, key_pri):
   """
   Formats the RSA private and public key into the right key format.
@@ -427,9 +427,9 @@ def rsa_canonical_key_from_pub_and_pri(key_pub, key_pri):
                 },
       'keyid_hash_algorithms':  [u'sha256', u'sha512']}
   tuf.formats.ANYKEY_SCHEMA.check_match(key)
-  print("RSA KEY\n")
-  pprint(key)
   return key
+
+
 
 
 
@@ -448,6 +448,8 @@ def fix_string_formatting_for_rsa_keys(key):
 
 
 
+
+
 def ED25519_canonical_key_from_pub_and_pri(key_pub, key_pri):
   """
   Formats the ED25519 private and public key into the right key format.
@@ -463,6 +465,7 @@ def ED25519_canonical_key_from_pub_and_pri(key_pub, key_pri):
   tuf.formats.ANYKEY_SCHEMA.check_match(key)
 
   return key
+
 
 
 

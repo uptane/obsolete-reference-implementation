@@ -784,6 +784,8 @@ class Secondary(object):
 
 
 
+
+
   def decrypt_images(self, image_fname):
     tuf.formats.PATH_SCHEMA.check_match(image_fname)
 
@@ -826,10 +828,3 @@ class Secondary(object):
 
     with open(full_image_fname, 'w') as f:
      f.write(decrypted_text.decode('utf-8'))
-
-
-
-
-
-
-

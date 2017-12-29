@@ -136,31 +136,6 @@ def test_demo_timeserver():
 
 
 
-  # # Fetch a DER-encoded converted-to-ASN.1 signed time attestation, with a
-  # # signature over the DER encoding.
-  # der_signed_time = timeserver.get_signed_time_der([2, 9, 151])
-
-  # # Encapsulate that in a Binary object for XML-RPC.
-  # xb_der_signed_time = xmlrpc_client.Binary(der_signed_time)
-  # assert der_signed_time == xb_der_signed_time.data, \
-  #     'Demo Timeserver self-test fail: xmlrpc Binary encapsulation issue'
-
-
-  # # Validate that signature.
-  # for pydict_again in [
-  #     asn1_codec.convert_signed_der_to_dersigned_json(der_signed_time),
-  #     asn1_codec.convert_signed_der_to_dersigned_json(xb_der_signed_time.data)]:
-
-  #   assert uptane.common.verify_signature_over_metadata(
-  #       timeserver_key_pub,
-  #       pydict_again['signatures'][0],
-  #       pydict_again['signed'],
-  #       datatype='time_attestation',
-  #       metadata_format='der'
-  #       ), 'Demo Timeserver self-test fail: unable to verify signature over DER'
-
-
-
 
 
 if __name__ == '__main__':

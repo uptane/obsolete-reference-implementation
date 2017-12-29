@@ -574,6 +574,7 @@ class Director:
 
 
 
+
   def AES_Cipher(self, file_to_encrypt):
     """
     Uses AES-128 to encrypt the contents of the target file.
@@ -585,6 +586,7 @@ class Director:
     cipher = AES.new(aeskey, AES.MODE_CFB, iv)
     msg = iv + cipher.encrypt(open(file_to_encrypt, 'r').read())
     return (binascii.hexlify(msg), aeskey)
+
 
 
 
@@ -603,11 +605,14 @@ class Director:
 
 
 
+
+
   def generate_hashes(self, filename):
     return {'sha256': tuf.hash.digest_filename(
         filename, algorithm = 'sha256').hexdigest(),
         'sha512':tuf.hash.digest_filename(
         filename, algorithm = 'sha512').hexdigest()}
+
 
 
 
@@ -620,7 +625,3 @@ class Director:
     encrypted_data, aes_key = self.AES_Cipher(target_fname)
     encrypted_aes_key = self.encrypt_aes_key(ecu_public_key, aes_key)
     return (encrypted_data.decode("utf-8"), encrypted_aes_key.decode("utf-8"))
-
-
-
-

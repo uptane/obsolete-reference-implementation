@@ -400,6 +400,8 @@ def check_ecu_registered(ecu_serial):
 
 
 
+
+
 def get_registered_ecu_serials():
   """
   Returns a list of all the ecu_serials that have been registered
