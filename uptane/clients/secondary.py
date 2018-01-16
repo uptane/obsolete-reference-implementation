@@ -37,7 +37,7 @@ import tuf.repository_tool as rt
 
 import uptane.formats
 import uptane.common
-import uptane.encoding.asn1_codec as asn1_codec #Uptane name TODO
+import uptane.encoding.asn1_codec as uptane_asn1_codec 
 import tuf.asn1_codec as tuf_asn1_codec
 
 from uptane.encoding.asn1_codec import DATATYPE_TIME_ATTESTATION
@@ -363,7 +363,7 @@ class Secondary(object):
         signable_ecu_manifest)
 
     if tuf.conf.METADATA_FORMAT == 'der':
-      der_signed_ecu_manifest = asn1_codec.convert_signed_metadata_to_der(
+      der_signed_ecu_manifest = uptane_asn1_codec.convert_signed_metadata_to_der(
           signable_ecu_manifest, DATATYPE_ECU_MANIFEST, resign=True,
           private_key=self.ecu_key)
       # TODO: Consider verification of output here.
@@ -394,7 +394,7 @@ class Secondary(object):
     # If we're using ASN.1/DER format, convert the attestation into something
     # comprehensible (JSON-compatible dictionary) instead.
     if tuf.conf.METADATA_FORMAT == 'der':
-      timeserver_attestation = asn1_codec.convert_signed_der_to_dersigned_json(
+      timeserver_attestation = uptane_asn1_codec.convert_signed_der_to_dersigned_json(
           timeserver_attestation, DATATYPE_TIME_ATTESTATION)
 
     # Check format.
@@ -591,7 +591,6 @@ class Secondary(object):
     if not os.path.exists(director_targets_metadata):
       raise uptane.Error('Indicated metadata archive does not exist. '
           'Filename: ' + repr(director_targets_metadata))
-
         
     metadata_file_object = tuf.util.load_file(director_targets_metadata)
 
@@ -623,6 +622,7 @@ class Secondary(object):
           'that there is a man in the middle attack or misconfiguration.')
     
     targets = metadata_file_object['signed']['targets']
+
     #Combs through the director's targets metadata to find the one assigned to the
     #current ECU. 
     for target in targets: 
@@ -630,6 +630,7 @@ class Secondary(object):
         target_metadata['filepath'] = target
         target_metadata['fileinfo'] = targets[target]
         validated_targets_for_this_ecu.append(target_metadata)
+
     self.validated_targets_for_this_ecu = validated_targets_for_this_ecu
 
 
