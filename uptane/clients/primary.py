@@ -577,8 +577,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     for targetinfo in directed_targets:
       target_filepath = targetinfo['filepath'].encode(
           'ascii', 'ignore')
-      target_ecu = \
-          ['fileinfo']['custom']['ecu_serial'].encode(
+      target_ecu = targetinfo['fileinfo']['custom']['ecu_serial'].encode(
           'ascii', 'ignore')
       try:
         # targetinfos = self.get_validated_target_info(target_filepath)
