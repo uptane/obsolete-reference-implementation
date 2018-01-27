@@ -131,6 +131,14 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
       The list of nonces sent to us from Secondaries and not yet sent to the
       Timeserver.
 
+    self.primary_exceptions
+      A dictionary to track errors ECU encounter while trying to install 
+      images. The mapping is in the following format:
+      Image : ECU : Error
+      Example ==>
+      {'/BCU1.1.txt': {'BCUdemocar': <class 'uptane.ImageRollBack'>},
+      '/BCU1.2.txt': {'BCUdemocar': <class 'uptane.HardwareIDMismatch'>}}
+
     self.nonces_sent:
       The list of nonces sent to the Timeserver by our Secondaries, which we
       have already sent to the Timeserver. Will be checked against the
@@ -223,6 +231,8 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     primary_key,
     time,
     timeserver_public_key,
+    hardware_id,
+    release_counter,
     my_secondaries=[]):
 
     """
@@ -269,6 +279,8 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(time)
     uptane.formats.VIN_SCHEMA.check_match(vin)
     uptane.formats.ECU_SERIAL_SCHEMA.check_match(ecu_serial)
+    uptane.formats.HARDWARE_ID_SCHEMA.check_match(hardware_id)
+    uptane.formats.RELEASE_COUNTER_SCHEMA.check_match(release_counter)
     tuf.formats.ANYKEY_SCHEMA.check_match(timeserver_public_key)
     tuf.formats.ANYKEY_SCHEMA.check_match(primary_key)
     # TODO: Should also check that primary_key is a private key, not a
@@ -283,6 +295,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     self.primary_key = primary_key
     self.my_secondaries = my_secondaries
     self.director_repo_name = director_repo_name
+    self.primary_exceptions = dict()
 
     self.temp_full_metadata_archive_fname = os.path.join(
         full_client_dir, 'metadata', 'temp_full_metadata_archive.zip')
@@ -444,6 +457,53 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
           'to allow some targets to validate without Director approval, or is'
           'the wrong repository specified as the Director repository in the '
           'initialization of this primary object?')
+    director_target = validated_target_info[self.director_repo_name]
+    temp_release_counter = None
+    temp_hardware_id = None
+
+    for repository_name in validated_target_info.keys():
+      current_target = validated_target_info[repository_name]
+
+      if 'custom' not in validated_target_info[repository_name]['fileinfo']:
+        raise uptane.Error('{} repo failed to include the custom field in a \
+            target. \nTarget metadata was: {}'.format(repository_name, \
+            repr(current_target)))
+        continue
+
+      custom_target_metadata = \
+          validated_target_info[repository_name]['fileinfo']['custom']
+      current_target_hardware_id = custom_target_metadata['hardware_id']
+      current_target_release_counter = custom_target_metadata['release_counter']
+      if 'hardware_id' in custom_target_metadata:
+        if temp_hardware_id == None:
+          temp_hardware_id = current_target_hardware_id
+        elif temp_hardware_id != current_target_hardware_id:
+          raise uptane.HardwareIDMismatch('Bad value for the field \
+              hardware_ID in the that did not correspond the value in \
+              the other repos. Value did not match between the director \
+              and the other repos. The value of director target is {}'.format(
+              repr(director_target)))
+          continue
+      else:
+        raise uptane.Error('{} repo failed to include the hardware ID field \
+            in the custom field of the target. \nTarget metadata was:\
+            {}'.format(repository_name, repr(current_target)))
+        continue
+
+      if 'release_counter' in custom_target_metadata:
+        if temp_release_counter == None:
+          temp_release_counter = current_target_release_counter
+        elif temp_release_counter != current_target_release_counter:
+          raise uptane.ImageRollBack('Bad value for the field release_counter \
+             that did not correspond the value in the other repos. Value \
+             did not match between the director and the other repos. \
+             The value of director target is {}'.format(repr(director_target)))
+          continue
+      else:
+        raise uptane.Error('{} repo failed to include the release counter \
+            field in the custom field of the target. \nTarget metadata was:\
+            {}'.format(repository_name, repr(current_target)))
+        continue
 
     # Defensive coding: this should already have been checked.
     tuf.formats.TARGETFILE_SCHEMA.check_match(
@@ -515,7 +575,11 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     # This will contain a list of tuf.formats.TARGETFILE_SCHEMA objects.
     verified_targets = []
     for targetinfo in directed_targets:
-      target_filepath = targetinfo['filepath']
+      target_filepath = targetinfo['filepath'].encode(
+          'ascii', 'ignore')
+      target_ecu = \
+          ['fileinfo']['custom']['ecu_serial'].encode(
+          'ascii', 'ignore')
       try:
         # targetinfos = self.get_validated_target_info(target_filepath)
         # for repo in targetinfos:
@@ -532,6 +596,9 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
             'untrustworthy Image Repository, or the Director and Image '
             'Repository may be out of sync.' + ENDCOLORS)
 
+        self.log_primary_exceptions(
+            target_filepath, target_ecu, tuf.UnknownTargetError)
+
         # If running the demo, display splash banner indicating the rejection.
         # This clause should be pulled out of the reference implementation when
         # possible.
@@ -541,6 +608,33 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
               'does not exactly match the Image Repository metadata. '
               'File: ' + repr(target_filepath), sound=TADA)
           time.sleep(3)
+
+      except uptane.HardwareIDMismatch:
+        log.warning(RED + 'Dorector has instructed us to download a target (' +
+            target_filepath + ') that is not validated by the combination of '
+            'Image + Director Repositories. That update IS BEING SKIPPED. It '
+            'the hardware IDs do not match between image and director '
+            'repositories. Try again, but if this happens often, you may be '
+            'connecting to an untrustworthy Director, or there may be an '
+            'untrustworthy Image Repository, or the Director and Image '
+            'Repository may be out of sync.' + ENDCOLORS)
+
+        self.log_primary_exceptions(
+          target_filepath, target_ecu, uptane.HardwareIDMismatch)
+
+      except uptane.ImageRollBack:
+        log.warning(RED + 'Dorector has instructed us to download a target (' +
+            target_filepath + ') that is not validated by the combination of '
+            'Image + Director Repositories. That update IS BEING SKIPPED. It '
+            'the release counters do not match between image and director '
+            'repositories. Try again, but if this happens often, you may be '
+            'connecting to an untrustworthy Director, or there may be an '
+            'untrustworthy Image Repository, or the Director and Image '
+            'Repository may be out of sync.' + ENDCOLORS)
+
+        self.log_primary_exceptions(
+          target_filepath, target_ecu, uptane.ImageRollBack)
+
 
 
     # # Grab a filepath from each of the dicts of target file infos. (Each dict
@@ -575,6 +669,8 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
 
       # Get the ECU Serial listed in the custom file data.
       assigned_ecu_serial = target['fileinfo']['custom']['ecu_serial']
+      # Checking the formats
+      uptane.formats.ECU_SERIAL_SCHEMA.check_match(assigned_ecu_serial)
 
       # Make sure it's actually an ECU we know about.
       if assigned_ecu_serial not in self.my_secondaries:
@@ -690,6 +786,16 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     # into place atomically after being constructed or copied. Secondaries
     # may be requesting these files live.
     self.save_distributable_metadata_files()
+
+
+
+
+
+  def log_primary_exceptions(self, image_name, ecu_serial, error):
+    """
+    Adds errors and exceptions handled by the primary.
+    """
+    self.primary_exceptions[image_name] = {ecu_serial:error}
 
 
 

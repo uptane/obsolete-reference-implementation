@@ -61,6 +61,8 @@ CLIENT_DIRECTORY_PREFIX = 'temp_secondary' # name for this secondary's directory
 CLIENT_DIRECTORY = None
 _vin = 'democar'
 _ecu_serial = 'TCUdemocar'
+_hardware_id = 'SecondaryInfotainment111'
+_release_counter = 0
 _primary_host = demo.PRIMARY_SERVER_HOST
 _primary_port = demo.PRIMARY_SERVER_DEFAULT_PORT
 firmware_filename = 'secondary_firmware.txt'
@@ -79,7 +81,9 @@ def clean_slate(
     vin=_vin,
     ecu_serial=_ecu_serial,
     primary_host=None,
-    primary_port=None):
+    primary_port=None,
+    hardware_id=_hardware_id,
+    release_counter=_release_counter):
   """
   """
 
@@ -91,6 +95,8 @@ def clean_slate(
   global nonce
   global CLIENT_DIRECTORY
   global attacks_detected
+  global _hardware_id
+  global _release_counter
 
   _vin = vin
   _ecu_serial = ecu_serial
@@ -152,6 +158,8 @@ def clean_slate(
       vin=_vin,
       ecu_serial=_ecu_serial,
       ecu_key=ecu_key,
+      hardware_id = _hardware_id,
+      release_counter= _release_counter,
       time=clock,
       firmware_fileinfo=factory_firmware_fileinfo,
       timeserver_public_key=key_timeserver_pub)
@@ -329,8 +337,16 @@ def update_cycle():
 
   # Now tell the Secondary reference implementation code where the archive file
   # is and let it expand and validate the metadata.
-  secondary_ecu.process_metadata(archive_fname)
-
+  try:
+    secondary_ecu.process_metadata(archive_fname)
+  except uptane.ImageRollBack:
+    print_banner(BANNER_DEFENDED, color=WHITE+DARK_BLUE_BG,
+              text='The Director has instructed us to download an image'
+              ' that has a lower release counter. This image has'
+              ' been rejected.', sound=TADA)
+    generate_signed_ecu_manifest()
+    submit_ecu_manifest_to_primary()
+    return
 
   # As part of the process_metadata call, the secondary will have saved
   # validated target info for targets intended for it in
@@ -483,6 +499,8 @@ def update_cycle():
   # 2. Set the fileinfo in the secondary_ecu object to the target info for the
   #    new firmware.
   secondary_ecu.firmware_fileinfo = expected_target_info
+  secondary_ecu.update_release_counter(
+      expected_target_info['fileinfo']['custom']['release_counter'])
 
 
   with open(current_firmware_filepath, 'rb') as file_object:

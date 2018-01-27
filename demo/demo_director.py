@@ -144,6 +144,21 @@ def clean_slate(use_new_keys=False):
 
   print(LOG_PREFIX + 'Signing and hosting initial repository metadata')
 
+  add_target_to_director(uptane.WORKING_DIR + '/demo/images/INFO1.0.txt',
+      'INFO1.0.txt', vin, 'INFO' + vin, hardware_id='info', release_counter=0)
+  add_target_to_director(uptane.WORKING_DIR + '/demo/images/TCU1.0.txt',
+      'TCU1.0.txt', vin, 'TCU' + vin, hardware_id='tcu', release_counter=0)
+  add_target_to_director(uptane.WORKING_DIR + '/demo/images/TCU1.1.txt',
+      'TCU1.1.txt', vin, 'TCU' + vin, hardware_id='tcu', release_counter=1)
+  add_target_to_director(uptane.WORKING_DIR + '/demo/images/TCU1.2.txt',
+        'TCU1.2.txt', vin, 'TCU' + vin, hardware_id='tcu', release_counter=2)
+  add_target_to_director(uptane.WORKING_DIR + '/demo/images/BCU1.0.txt',
+      'BCU1.0.txt', vin, 'BCU' + vin, hardware_id='bcu', release_counter=0)
+  add_target_to_director(uptane.WORKING_DIR + '/demo/images/BCU1.1.txt',
+      'BCU1.1.txt', vin, 'BCU' + vin, hardware_id='bcu', release_counter=0)
+  add_target_to_director(uptane.WORKING_DIR + '/demo/images/BCU1.2.txt',
+      'BCU1.2.txt', vin, 'BCU' + vin, hardware_id='bcu', release_counter=0)
+
   write_to_live()
 
   host()
@@ -590,7 +605,8 @@ def undo_sign_with_compromised_keys_attack(vin=None):
 
 
 
-def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
+def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial, 
+    hardware_id, release_counter):
   """
   For use in attacks and more specific demonstration.
 
@@ -614,6 +630,12 @@ def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
     ecu_serial
       The ECU to assign this target to in the targets metadata.
       Complies with uptane.formats.ECU_SERIAL_SCHEMA
+
+    hardware_id 
+    #TODO
+
+    release_counter
+    #TODO
 
   """
   uptane.formats.VIN_SCHEMA.check_match(vin)
@@ -640,7 +662,8 @@ def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
 
   # This calls the appropriate vehicle repository.
   director_service_instance.add_target_for_ecu(
-      vin, ecu_serial, destination_filepath)
+      vin, ecu_serial, destination_filepath, hardware_id=hardware_id, 
+      release_counter=release_counter)
 
 
 
@@ -1234,3 +1257,47 @@ def kill_server():
         str(repo_server_process.pid))
     repo_server_process.kill()
     repo_server_process = None
+
+
+
+
+def image_rollback_attack(firmware_fname, ecu_serial = '22222',
+      vin = '111', release_counter = 0, hardware_id = "SecondaryECU101"):
+  """
+  Tries to install an image with a lower release counter on the ecu. Should be stopped. 
+  Default release counter of our ECUs is set to 1. 
+  """
+  print("ATTACK: IMAGE ROLLBACK ATTACK, an attempt to install a firmware with lower release counter than that of the ECU")
+  filepath_in_repo = firmware_fname
+  add_target_to_director(firmware_fname, filepath_in_repo, vin, ecu_serial, hardware_id, release_counter)
+  write_to_live(vin_to_update = vin)
+
+
+
+
+
+def confused_bundle_attack(firmware_fname, ecu_serial = '22222', vin = '111', release_counter = 0, hardware_id = "SecondaryECU101"):
+  """
+  Assumes a compromised director.
+  Tries to install images with release counters that don't match the other image repositories. 
+  """
+  print("ATTACK: confused_bundle_attack, "
+      "an attempt to install a compromised image with a "
+      "release_counter that doesn't match that of other repositories.")
+  filepath_in_repo = firmware_fname
+  add_target_to_director(firmware_fname, filepath_in_repo, vin, ecu_serial, hardware_id, release_counter)
+  write_to_live(vin_to_update = vin)
+
+
+
+
+
+def sneaky_director_attack(firmware_fname, ecu_serial = '22222', vin = '111', release_counter = 3, hardware_id = "NotARealSecondaryECU101"):
+  """
+  Assumes a compromised director. 
+  Tries to install an image on an ECU that is not meant for that particular ECU through leveraging the ECU serial.
+  """
+  print("ATTACK: SNEAKY DIRECTOR ATTACK. Tries to install an image on an ECU that is not meant for that particular ECU through leveraging the ECU serial.")
+  filepath_in_repo = firmware_fname
+  add_target_to_director(firmware_fname, filepath_in_repo, vin, ecu_serial, hardware_id, release_counter)
+  write_to_live(vin_to_update = vin)
