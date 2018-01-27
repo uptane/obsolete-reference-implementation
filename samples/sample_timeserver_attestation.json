@@ -3,14 +3,13 @@
   {
    "keyid": "79c796d7e87389d1ebad04edce49faef611d139ee41ea9fb1931732afbfaac2e",
    "method": "ed25519",
-   "sig": "169791018248eaf1969bd518c306d34b508af83d5ffc35239f14974c5becdd65dcc3c2ce4e578f09baaf7954150a5efd7170a3a296d073065a30c6da7272c503"
+   "sig": "634d5fbe1a30f9e00990c58b599f5290b0c88e30c069c22eb783d1cbfdc75e8276dc4505e5980715db6a02cbfd71716953c9c205e385c3f4ddb26f770f5b4d05"
   }
  ],
  "signed": {
   "nonces": [
-   1,
-   2
+   2055631847
   ],
-  "time": "2017-05-18T16:23:13Z"
+  "time": "2018-01-27T06:15:29Z"
  }
 }

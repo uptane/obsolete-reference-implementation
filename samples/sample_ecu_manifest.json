@@ -3,23 +3,30 @@
   {
    "keyid": "49309f114b857e4b29bfbff1c1c75df59f154fbc45539b2eb30c8a867843b2cb",
    "method": "ed25519",
-   "sig": "fd04c1edb0ddf1089f0d3fc1cd460af584e548b230d9c290deabfaf29ce5636b6b897eaa97feb64147ac2214c176bbb1d0fa8bb9c623011a0e48d258eb3f9108"
+   "sig": "15c5d2aa2dd6160711d8113f295d8f49710fe5678f67dccb6b275d5d6655b1758df577089b94dfeea93e77b487848502dabc7cf05eaad2aaa312cb301526ff0c"
   }
  ],
  "signed": {
   "attacks_detected": "",
   "ecu_serial": "TCUdemocar",
+  "hardware_id": "SecondaryInfotainment111",
   "installed_image": {
    "fileinfo": {
-    "hashes": {
-     "sha256": "6b9f987226610bfed08b824c93bf8b2f59521fce9a2adef80c495f363c1c9c44",
-     "sha512": "706c283972c5ae69864b199e1cdd9b4b8babc14f5a454d0fd4d3b35396a04ca0b40af731671b74020a738b5108a78deb032332c36d6ae9f31fae2f8a70f7e1ce"
+    "custom": {
+     "ecu_serial": "TCUdemocar",
+     "hardware_id": "SecondaryInfotainment111",
+     "release_counter": 2
     },
-    "length": 37
+    "hashes": {
+     "sha256": "daeec2555599b8e7a82b6f1339d5f419346b57a0eb7a39ee6334b8f205595752",
+     "sha512": "1570937a84e9e74e35f5e56a8f8518c91e18258cffc8ace249d9acf173d1845d82002583b1b53373b79edf52494d524f2619f5f1896f3085038deca92c950486"
+    },
+    "length": 20
    },
-   "filepath": "/secondary_firmware.txt"
+   "filepath": "/firmware0111.img"
   },
-  "previous_timeserver_time": "2017-05-18T16:37:46Z",
-  "timeserver_time": "2017-05-18T16:37:48Z"
+  "previous_timeserver_time": "2018-01-27T06:16:16Z",
+  "release_counter": 2,
+  "timeserver_time": "2018-01-27T06:16:16Z"
  }
 }

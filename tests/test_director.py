@@ -427,32 +427,54 @@ class TestDirector(unittest.TestCase):
   def test_15_register_vehicle_manifest(self):
 
     manifest_json = {
-       "signatures": [{
-         "keyid": "9a406d99e362e7c93e7acfe1e4d6585221315be817f350c026bbee84ada260da",
-         "method": "ed25519",
-         "sig": "335272f77357dc0e9f1b74d72eb500e4ff0f443f824b83405e2b21264778d1610e0a5f2663b90eda8ab05a28b5b64fc15514020985d8a93576fe33b287e1380f"}],
-       "signed": {
-        "primary_ecu_serial": "INFOdemocar",
-        "vin": "democar",
-        "ecu_version_manifests": {
-         "TCUdemocar": [{
-           "signatures": [{
-             "keyid": "49309f114b857e4b29bfbff1c1c75df59f154fbc45539b2eb30c8a867843b2cb",
-             "method": "ed25519",
-             "sig": "fd04c1edb0ddf1089f0d3fc1cd460af584e548b230d9c290deabfaf29ce5636b6b897eaa97feb64147ac2214c176bbb1d0fa8bb9c623011a0e48d258eb3f9108"}],
-           "signed": {
-            "attacks_detected": "",
-            "ecu_serial": "TCUdemocar",
-            "previous_timeserver_time": "2017-05-18T16:37:46Z",
-            "timeserver_time": "2017-05-18T16:37:48Z",
-            "installed_image": {
-             "filepath": "/secondary_firmware.txt",
-             "fileinfo": {
-              "length": 37,
-              "hashes": {
-               "sha256": "6b9f987226610bfed08b824c93bf8b2f59521fce9a2adef80c495f363c1c9c44",
-               "sha512": "706c283972c5ae69864b199e1cdd9b4b8babc14f5a454d0fd4d3b35396a04ca0b40af731671b74020a738b5108a78deb032332c36d6ae9f31fae2f8a70f7e1ce"}}}}}]}}}
-
+ "signatures": [
+  {
+   "keyid": "9a406d99e362e7c93e7acfe1e4d6585221315be817f350c026bbee84ada260da",
+   "method": "ed25519",
+   "sig": "5224f791dd198952c7df5ae35647a2bcef1db498197795668d6420d62f0029b7f49d84c6eb2abd3da1321a33e32f1222f54815872fc92f0202e9c59cc3c07400"
+  }
+ ],
+ "signed": {
+  "ecu_version_manifests": {
+   "TCUdemocar": [
+    {
+     "signatures": [
+      {
+       "keyid": "49309f114b857e4b29bfbff1c1c75df59f154fbc45539b2eb30c8a867843b2cb",
+       "method": "ed25519",
+       "sig": "6532a2ef1f7fa83927dc41acbceb153592d005c2d9b6fcf33d87bca15e949c037070ba75635e0ab30385a3538b1d2beaddf400033f32b89d1dcc0f9b02744c0d"
+      }
+     ],
+     "signed": {
+      "attacks_detected": "",
+      "ecu_serial": "TCUdemocar",
+      "hardware_id": "SecondaryInfotainment111",
+      "installed_image": {
+       "fileinfo": {
+        "custom": {
+         "ecu_serial": "TCUdemocar",
+         "hardware_id": "SecondaryInfotainment111",
+         "release_counter": 2
+        },
+        "hashes": {
+         "sha256": "daeec2555599b8e7a82b6f1339d5f419346b57a0eb7a39ee6334b8f205595752",
+         "sha512": "1570937a84e9e74e35f5e56a8f8518c91e18258cffc8ace249d9acf173d1845d82002583b1b53373b79edf52494d524f2619f5f1896f3085038deca92c950486"
+        },
+        "length": 20
+       },
+       "filepath": "/firmware011.img"
+      },
+      "previous_timeserver_time": "2018-01-27T05:52:57Z",
+      "release_counter": 2,
+      "timeserver_time": "2018-01-27T05:57:49Z"
+     }
+    }
+   ]
+  },
+  "primary_ecu_serial": "INFOdemocar",
+  "vin": "democar"
+ }
+}
     if tuf.conf.METADATA_FORMAT == 'json':
       manifest = manifest_json
 
