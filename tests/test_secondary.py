@@ -778,6 +778,16 @@ class TestSecondary(unittest.TestCase):
     with self.assertRaises(tuf.BadSignatureError):
       instance.process_metadata(director_targets_metadata_path)
 
+    # If the Secondary lacks a Director public key for some reason (even
+    # though the constructor checks for one if this is a partial-verification
+    # Secondary), it should raise this error:
+    with self.assertRaises(uptane.Error):
+      temp = instance.director_public_key
+      instance.director_public_key = None
+      instance.process_metadata(director_targets_metadata_path)
+
+    instance.director_public_key = temp # put the key back after the test
+
 
 
 
