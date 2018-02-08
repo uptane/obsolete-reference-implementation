@@ -721,10 +721,10 @@ class Secondary(object):
     # - In the case of ASN.1/DER, that means a hash taken over the ASN.1/DER
     #   data (so it must be converted back, as the data was converted into a
     #   dictionary for ease of use).
-    if director_targets_metadata_fname.endswith('json'):
+    if tuf.conf.METADATA_FORMAT == 'json':
       data_signed = tuf.formats.encode_canonical(data).encode('utf-8')
 
-    elif director_targets_metadata_fname.endswith('der'):
+    elif tuf.conf.METADATA_FORMAT == 'der':
       data_signed = tuf_asn1_codec.convert_signed_metadata_to_der(
           {'signed': data, 'signatures': []}, only_signed=True)
       data_signed = hashlib.sha256(data_signed).digest()
