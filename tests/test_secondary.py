@@ -738,12 +738,10 @@ class TestSecondary(unittest.TestCase):
     Tests uptane.clients.secondary.Secondary::process_partial_metadata()
 
     Tests PV Secondary client in 2 situations:
-     - secondary_instances[3]: Director's targets metadata available with 
-       valid signatures in JSON mode
-     - secondary_instances[3]: Director's targets metadata available with 
-       invalid signatures in JSON mode
-     - secondary_instances[3]: Director's targets metadata available with 
-       valid signatures in DER mode
+     - secondary_instances[3]: Director's targets metadata available with
+       valid signatures
+     - secondary_instances[3]: Director's targets metadata available with
+       invalid signatures
     """
     # --- Test this test module's setup (defensive)
     # First, check the source directories, from which the temp dir is copied.
@@ -756,46 +754,30 @@ class TestSecondary(unittest.TestCase):
       self.assertEqual(
           ['root.der', 'root.json'],
           sorted(os.listdir(data_directory)))
-    
-    sample_working_metadata_path = os.path.join(uptane.WORKING_DIR, 'samples', 
-        'sample_pv_secondary_target_metadata.json')
+
+    sample_working_metadata_path = os.path.join(uptane.WORKING_DIR, 'samples',
+        'sample_pv_secondary_target_metadata.' + tuf.conf.METADATA_FORMAT)
 
     sample_bad_sig_working_metadata_path = os.path.join(uptane.WORKING_DIR,
-        'samples', 'sample_pv_secondary_target_metadata_bad_sig.json')
-
-    sample_der_working_metadata_path = os.path.join(uptane.WORKING_DIR, 'samples', 
-        'sample_pv_secondary_target_metadata.der')
+        'samples','sample_pv_secondary_target_metadata_bad_sig.' +
+        tuf.conf.METADATA_FORMAT)
 
     pv_secondary_dir = TEMP_CLIENT_DIRS[PV_SECONDARY1_INDICE]
     instance = secondary_instances[PV_SECONDARY1_INDICE]
-    director_targets_metadata_path_json = os.path.join(pv_secondary_dir, 
-        'metadata', 'director_targets.json')
+    director_targets_metadata_path = os.path.join(pv_secondary_dir,
+        'metadata', 'director_targets.' + tuf.conf.METADATA_FORMAT)
 
-    director_targets_metadata_path_der = os.path.join(pv_secondary_dir, 
-        'metadata', 'director_targets.der')
-
-    # PV Secondary 1 with valid director public key and update JSON
-    shutil.copy(sample_working_metadata_path, director_targets_metadata_path_json)
-    if not os.path.exists(director_targets_metadata_path_json):
-      raise("Director's targets not available")
-    instance.process_metadata(director_targets_metadata_path_json)
+    # PV Secondary 1 with valid director public key. Update successfully.
+    shutil.copy(sample_working_metadata_path, director_targets_metadata_path)   # <~> Is this right?
+    instance.process_metadata(director_targets_metadata_path)
 
     # PV Secondary 1 with valid director public key but update with
-    # invalid signature. JSON
-    shutil.copy(sample_bad_sig_working_metadata_path, 
-        director_targets_metadata_path_json)
-    if not os.path.exists(director_targets_metadata_path_json):
-      raise("Director's targets not available")
+    # invalid signature
+    shutil.copy(sample_bad_sig_working_metadata_path,
+        director_targets_metadata_path)
     with self.assertRaises(tuf.BadSignatureError):
-      instance.process_metadata(director_targets_metadata_path_json)
+      instance.process_metadata(director_targets_metadata_path)
 
-    # PV Secondary 1 with valid director public key and update DER
-    shutil.copy(sample_der_working_metadata_path, 
-        director_targets_metadata_path_der)
-    if not os.path.exists(director_targets_metadata_path_der):
-      raise("Director's targets not available")
-    instance.process_metadata(director_targets_metadata_path_der)
-  
 
 
 
