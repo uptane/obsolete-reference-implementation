@@ -780,6 +780,12 @@ class TestSecondary(unittest.TestCase):
         'sample_pv_secondary_target_metadata_bad_sig.' +
         tuf.conf.METADATA_FORMAT)
 
+    expired_metadata_path = os.path.join(SAMPLE_DATA_DIR,
+        'director_targets_expired_v3.' + tuf.conf.METADATA_FORMAT)
+
+    replayed_metadata_path = os.path.join(SAMPLE_DATA_DIR,
+        'director_targets_empty_v1.' + tuf.conf.METADATA_FORMAT)
+
     pv_secondary_dir = TEMP_CLIENT_DIRS[PV_SECONDARY1_INDICE]
     instance = secondary_instances[PV_SECONDARY1_INDICE]
     director_targets_metadata_path = os.path.join(pv_secondary_dir,
@@ -791,9 +797,22 @@ class TestSecondary(unittest.TestCase):
     instance.process_metadata(director_targets_metadata_path)
 
     # PV Secondary 1 with valid director public key but update with
-    # invalid signature
+    # invalid signature. version == 2
     shutil.copy(bad_sig_metadata_path, director_targets_metadata_path)
     with self.assertRaises(tuf.BadSignatureError):
+      instance.process_metadata(director_targets_metadata_path)
+
+    # Test with expired metadata (but version == 3, so not an apparent replay).
+    shutil.copy(expired_metadata_path, director_targets_metadata_path)
+    with self.assertRaises(tuf.ExpiredMetadataError):
+      instance.process_metadata(director_targets_metadata_path)
+
+    # Test with metadata with a version == 1. Note that the client has already
+    # accepted Director Targets metadata with version == 2, so this should be
+    # rejected, since it's either a replay attack, strangely old metadata, or
+    # something more malicious).
+    shutil.copy(replayed_metadata_path, director_targets_metadata_path)
+    with self.assertRaises(tuf.ReplayedMetadataError):
       instance.process_metadata(director_targets_metadata_path)
 
     # If the Secondary lacks a Director public key for some reason (even

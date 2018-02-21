@@ -1,0 +1,19 @@
+{
+ "signatures": [
+  {
+   "keyid": "630cf584f392430b2119a4395e39624e86f5e5c5374507a789be5cf35bf090d6",
+   "method": "ed25519",
+   "sig": "41b105b7af297ce24c58971af31df3cb80d28a5464eeb7424b3c9e57f4e955aa9f688eed0dd0399b82b888ea52cc4309d8380bd7f37aeae42778741686d45f03"
+  }
+ ],
+ "signed": {
+  "_type": "Targets",
+  "delegations": {
+   "keys": {},
+   "roles": []
+  },
+  "expires": "2018-02-21T17:36:11Z",
+  "targets": {},
+  "version": 3
+ }
+}
