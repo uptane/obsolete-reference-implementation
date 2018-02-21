@@ -809,6 +809,31 @@ class TestSecondary(unittest.TestCase):
     shutil.copy(working_metadata_path, director_targets_metadata_path)   # <~> Is this right?
     instance.process_metadata(director_targets_metadata_path)
 
+    # If the Secondary expects a signature from a key of a different type than
+    # the one that signed the metadata, expect failure (whether or not it
+    # has the same key ID).
+    assert instance.director_public_key['keytype'] == 'ed25519', 'This test ' \
+        'is no longer correct: it assumes that the key type of the Director ' \
+        'Targets key will be ed25519, but it is actually ' + \
+        instance.director_public_key['keytype'] + '; please fix the test.'
+    instance.director_public_key['keytype'] = 'rsa'
+    with self.assertRaises(tuf.BadSignatureError):
+      instance.process_metadata(director_targets_metadata_path)
+    instance.director_public_key['keytype'] = 'ed25519' # back to real key type
+
+    # If the Secondary expects a signature from a different key than the one
+    # that signed the metadata, expect failure.
+    temp = instance.director_public_key
+    instance.director_public_key = self.key_timeserver_pub
+    with self.assertRaises(tuf.BadSignatureError):
+      instance.process_metadata(director_targets_metadata_path)
+    instance.director_public_key = temp # put the key back after the test
+
+    # TODO: Make sure that it doesn't interfere with validation if there are
+    # other, unnecessary signatures on the metadata before the signature that
+    # the partial verification Secondary is expecting.
+
+
     # PV Secondary 1 with valid director public key but update with
     # invalid signature. version == 2
     shutil.copy(bad_sig_metadata_path, director_targets_metadata_path)
