@@ -438,10 +438,12 @@ class Secondary(object):
     if self.last_nonce_sent is None:
       # This ECU is fresh and hasn't actually ever sent a nonce to the Primary
       # yet. It would be impossible to validate a timeserver attestation.
-      log.warning(YELLOW + 'Cannot validate a timeserver attestation yet: '
+      log.error('Cannot validate a timeserver attestation yet: '
           'this fresh Secondary ECU has never communicated a nonce and ECU '
-          'Version Manifest to the Primary.' + ENDCOLORS)
-      return
+          'Version Manifest to the Primary.')
+      raise uptane.BadTimeAttestation('This Secondary has been have been '
+          'provided a time attestation, but there is no record of this '
+          'Secondary having ever previously sent any nonce.')
 
     elif self.last_nonce_sent not in timeserver_attestation['signed']['nonces']:
       # TODO: Create a new class for this Exception in this file.
