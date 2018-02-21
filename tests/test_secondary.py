@@ -804,6 +804,10 @@ class TestSecondary(unittest.TestCase):
     director_targets_metadata_path = os.path.join(pv_secondary_dir,
         'metadata', 'director_targets.' + tuf.conf.METADATA_FORMAT)
 
+    # First, test behavior if the file we indicate does not exist.
+    with self.assertRaises(uptane.Error):
+      instance.process_metadata('some_file_that_does_not_actually_exist.xyz')
+
     # PV Secondary 1 with valid director public key. Update successfully.
     # The metadata happens to have version == 2 (relevant in the next tests).
     shutil.copy(working_metadata_path, director_targets_metadata_path)   # <~> Is this right?
