@@ -63,6 +63,7 @@ TEST_DIRECTOR_ROOT_FNAME = os.path.join(
 TEST_IMAGE_REPO_ROOT_FNAME = os.path.join(
     TEST_IMAGE_REPO_METADATA_DIR, 'root.' + tuf.conf.METADATA_FORMAT)
 TEST_PINNING_FNAME = os.path.join(TEST_DATA_DIR, 'pinned.json')
+SAMPLE_DATA_DIR = os.path.join(uptane.WORKING_DIR, 'samples')
 
 TEMP_CLIENT_DIRS = [
     os.path.join(TEST_DATA_DIR, 'temp_test_secondary0'),
@@ -655,9 +656,9 @@ class TestSecondary(unittest.TestCase):
     # --- Set up this test
 
     # Location of the sample Primary-produced metadata archive
-    sample_archive_fname = os.path.join(
-        uptane.WORKING_DIR, 'samples', 'metadata_samples_long_expiry',
-        'update_to_one_ecu', 'full_metadata_archive.zip')
+    sample_archive_fname = os.path.join(SAMPLE_DATA_DIR,
+        'metadata_samples_long_expiry', 'update_to_one_ecu',
+        'full_metadata_archive.zip')
 
     assert os.path.exists(sample_archive_fname), 'Cannot test ' \
         'process_metadata; unable to find expected sample metadata archive' + \
@@ -772,11 +773,11 @@ class TestSecondary(unittest.TestCase):
           ['root.der', 'root.json'],
           sorted(os.listdir(data_directory)))
 
-    sample_working_metadata_path = os.path.join(uptane.WORKING_DIR, 'samples',
+    working_metadata_path = os.path.join(SAMPLE_DATA_DIR,
         'sample_pv_secondary_target_metadata.' + tuf.conf.METADATA_FORMAT)
 
-    sample_bad_sig_working_metadata_path = os.path.join(uptane.WORKING_DIR,
-        'samples','sample_pv_secondary_target_metadata_bad_sig.' +
+    bad_sig_metadata_path = os.path.join(SAMPLE_DATA_DIR,
+        'sample_pv_secondary_target_metadata_bad_sig.' +
         tuf.conf.METADATA_FORMAT)
 
     pv_secondary_dir = TEMP_CLIENT_DIRS[PV_SECONDARY1_INDICE]
@@ -785,13 +786,13 @@ class TestSecondary(unittest.TestCase):
         'metadata', 'director_targets.' + tuf.conf.METADATA_FORMAT)
 
     # PV Secondary 1 with valid director public key. Update successfully.
-    shutil.copy(sample_working_metadata_path, director_targets_metadata_path)   # <~> Is this right?
+    # The metadata happens to have version == 2 (relevant in the next tests).
+    shutil.copy(working_metadata_path, director_targets_metadata_path)   # <~> Is this right?
     instance.process_metadata(director_targets_metadata_path)
 
     # PV Secondary 1 with valid director public key but update with
     # invalid signature
-    shutil.copy(sample_bad_sig_working_metadata_path,
-        director_targets_metadata_path)
+    shutil.copy(bad_sig_metadata_path, director_targets_metadata_path)
     with self.assertRaises(tuf.BadSignatureError):
       instance.process_metadata(director_targets_metadata_path)
 
