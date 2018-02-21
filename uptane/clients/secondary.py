@@ -710,10 +710,10 @@ class Secondary(object):
 
     # Check to see if the metadata has a lower version number than expected.
     if data['version'] < self.last_valid_targets_metadata_version_number:
-      raise tuf.ReplayedMetadataError('Provided metadata has lower version '
-          'number than the metadata this partial verification Secondary has '
-          'previously validated.')
-
+      log.error('Provided metadata has lower version number than the metadata '
+          'this partial verification Secondary has previously validated.')
+      raise tuf.ReplayedMetadataError('targets',
+          self.last_valid_targets_metadata_version_number, data['version'])
 
     # Make sure the data is in the exact format that it is expected to have
     # been signed over in order to validate the signature over it.
