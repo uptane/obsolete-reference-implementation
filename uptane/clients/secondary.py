@@ -662,9 +662,16 @@ class Secondary(object):
       None
 
     <Exceptions>
+      uptane.Error
+        if director_targets_metadata_fname does not specify a file that exists
+        or if tuf.conf.METADATA_FORMAT is somehow an unsupported format (i.e.
+        not 'json' or 'der')
+
       tuf.BadSignatureError
         if the signature over the Targets metadata is not a valid
-        signature by the key corresponding to self.director_public_key.
+        signature by the key corresponding to self.director_public_key, or if
+        the key type listed in the signature does not match the key type listed
+        in the public key
 
       tuf.ExpiredMetadataError
         if the Targets metadata is expired
@@ -686,7 +693,7 @@ class Secondary(object):
     validated_targets_for_this_ecu = []
     target_metadata = {}
     if not os.path.exists(director_targets_metadata_fname):
-      raise uptane.Error('Indicated metadata archive does not exist. '
+      raise uptane.Error('Indicated Director Targets metadata file not found. '
           'Filename: ' + repr(director_targets_metadata_fname))
 
     metadata_file_object = tuf.util.load_file(director_targets_metadata_fname)
