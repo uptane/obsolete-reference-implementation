@@ -307,14 +307,15 @@ def update_cycle():
     # from it like so:
     time_attestation = time_attestation.data
 
-  # If the secondary runs in full verification mode:
-  # The metadata is downloaded from the Primary in the form of an archive 
-  # that includes all the metadata files. This returns the binary data that
-  # we need to write to the file.
-  # If the secondary runs in partial verification mode:
-  # Only the director's targets role file is copied.
+  # Obtain metadata from the Primary, either as a single role file (the
+  # Director Targets role file) if this is a partial-verification Secondary,
+  # or as an archive that includes all the metadata files if this is a full-
+  # verification Secondary.
+  # This call returns the binary data that we need to write to the file.
 
-  metadata_from_primary = pserver.get_metadata(secondary_ecu.ecu_serial, secondary_ecu.partial_verifying)
+  metadata_from_primary = pserver.get_metadata(
+      secondary_ecu.ecu_serial, secondary_ecu.partial_verifying)
+
   # Validate the time attestation and internalize the time. Continue
   # regardless.
   try:
@@ -331,10 +332,8 @@ def update_cycle():
   #else:
   #  print(GREEN + 'Official time has been updated successfully.' + ENDCOLORS)
 
-  # If secondary is running full validation then 
-  # Dump the archive file to disk.
-  # If secondary is running partial verification then
-  # copies the director targets role file.
+  # Write the metadata retrieved from the Primary to disk, whether it is a
+  # single role file (partial verification) or the full metadata archive.
   if secondary_ecu.partial_verifying:
     director_targets_role = os.path.join(
         secondary_ecu.full_client_dir, 'director_targets.'+tuf.conf.METADATA_FORMAT)
@@ -347,9 +346,8 @@ def update_cycle():
     with open(archive_fname, 'wb') as fobj:
       fobj.write(metadata_from_primary.data)
 
-  # Now tell the Secondary reference implementation code where the archive file
-  # is and let it expand and validate the metadata.
-
+    # Now tell the Secondary reference implementation code where the archive
+    # file is and let it expand (as necessary) and validate the metadata.
     secondary_ecu.process_metadata(archive_fname)
 
 
