@@ -71,7 +71,8 @@ TEMP_CLIENT_DIRS = [
     os.path.join(TEST_DATA_DIR, 'temp_test_secondary2'),
     os.path.join(TEST_DATA_DIR, 'temp_test_partial_secondary0')]
 
-# Assigns the last NUM_PARTIAL_SECONDARIES number of 
+
+# Assigns the last NUM_PARTIAL_SECONDARIES number of
 # secondaries as partial verification
 NUM_PARTIAL_SECONDARIES = 1
 # Indices of PV Secondaries in the list of secondaries
@@ -79,7 +80,7 @@ PV_SECONDARY1_INDICE = 3
 
 # I'll initialize these in the __init__ test, and use this for the simple
 # non-damaging tests so as to avoid creating objects all over again.
-# Initializes the number of secondary instances to the number of 
+# Initializes the number of secondary instances to the number of
 # TEMP_CLIENT_DIRS
 secondary_instances = [None] * len(TEMP_CLIENT_DIRS)
 
@@ -389,7 +390,7 @@ class TestSecondary(unittest.TestCase):
       vin = vins[i]
       partial_verifying_for_ecu = False
       director_public_key_for_ecu = None
-      # Sets the last NUM_PARTIAL_SECONDARIES number of ECUs to partial 
+      # Sets the last NUM_PARTIAL_SECONDARIES number of ECUs to partial
       # verifying
       if i == PV_SECONDARY1_INDICE:
         partial_verifying_for_ecu = True
@@ -786,6 +787,9 @@ class TestSecondary(unittest.TestCase):
     replayed_metadata_path = os.path.join(SAMPLE_DATA_DIR,
         'director_targets_empty_v1.' + tuf.conf.METADATA_FORMAT)
 
+    # director_targets_metadata_path is where the partial verification Secondary
+    # client stores the Director Targets metadata it gets from the Primary,
+    # which it then will validate.
     pv_secondary_dir = TEMP_CLIENT_DIRS[PV_SECONDARY1_INDICE]
     instance = secondary_instances[PV_SECONDARY1_INDICE]
     director_targets_metadata_path = os.path.join(pv_secondary_dir,
