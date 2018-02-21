@@ -37,6 +37,23 @@ from uptane.encoding.asn1_codec import DATATYPE_ECU_MANIFEST
 # For temporary convenience:
 import demo # for generate_key, import_public_key, import_private_key
 
+# TODO: Test data directories are somewhat more convoluted than necessary.
+# The tests/test_data/ directory (TEST_DATA_DIR) contains:
+#   - director_metadata and image_repo_metadata directories, which each contain
+#     only root.json and root.der, sane files for use in testing.
+#   - flawed_manifests (with correct and various flawed vehicle and ECU
+#     manifests)
+#   - pinned.json, a sane pinning file for use in testing
+#   - temporary directories created during testing:
+#       - temp_test_secondary0, temp_test_partial_secondary0, etc.
+#       - temp_test_common, which seems to be unused and persists...?
+#
+# The samples/ directory (SAMPLE_DATA_DIR) contains snapshots of all repository
+# metadata files from both repositories in a few states, with distant
+# expiration dates (decades). It also contains a variety of samples of
+# manifests and time attestations, along with flawed samples (expired, bad
+# signatures, etc.) for both human consumption and testing purposes.
+#
 TEST_DATA_DIR = os.path.join(uptane.WORKING_DIR, 'tests', 'test_data')
 TEST_DIRECTOR_METADATA_DIR = os.path.join(TEST_DATA_DIR, 'director_metadata')
 TEST_IMAGE_REPO_METADATA_DIR = os.path.join(
