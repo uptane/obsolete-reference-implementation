@@ -1,0 +1,30 @@
+{
+ "signatures": [
+  {
+   "keyid": "630cf584f392430b2119a4395e39624e86f5e5c5374507a789be5cf35bf090d6",
+   "method": "ed25519",
+   "sig": "22823ee73a94b427860247b964a1fcfba15f23cdd294919e6e5687b293eccfc210be49a362299b5a8157b5601fa1a7dc41d3f82b3a026804b15ebfee3e420d0a"
+  }
+ ],
+ "signed": {
+  "_type": "Targets",
+  "delegations": {
+   "keys": {},
+   "roles": []
+  },
+  "expires": "2031-10-22T19:07:35Z",
+  "targets": {
+   "/BCU1.0.txt": {
+    "custom": {
+     "ecu_serial": "pv_bcu"
+    },
+    "hashes": {
+     "sha256": "fb0aa5699a4e7b68009fed6b094ecb00c3ad5670921be1b902b72a23cd4675b1",
+     "sha512": "0b0bb00bccf7bdad519d0a0af2794c945bd51ebdbc79f9616f0e3903b32f4ce2d5b250ab1bc2d34194bacf720b4f0aed361ef8d59ac72b1bc19e3a223a5e87cd"
+    },
+    "length": 15
+   }
+  },
+  "version": 2
+ }
+}

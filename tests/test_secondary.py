@@ -787,7 +787,7 @@ class TestSecondary(unittest.TestCase):
           sorted(os.listdir(data_directory)))
 
     working_metadata_path = os.path.join(SAMPLE_DATA_DIR,
-        'director_targets_v2.' + tuf.conf.METADATA_FORMAT)
+        'director_targets_pv_bcu_v2.' + tuf.conf.METADATA_FORMAT)
 
     bad_sig_metadata_path = os.path.join(SAMPLE_DATA_DIR,
         'director_targets_bad_sig_v2.' + tuf.conf.METADATA_FORMAT)
