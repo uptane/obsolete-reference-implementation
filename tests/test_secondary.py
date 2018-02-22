@@ -784,11 +784,10 @@ class TestSecondary(unittest.TestCase):
           sorted(os.listdir(data_directory)))
 
     working_metadata_path = os.path.join(SAMPLE_DATA_DIR,
-        'sample_pv_secondary_target_metadata.' + tuf.conf.METADATA_FORMAT)
+        'director_targets_v2.' + tuf.conf.METADATA_FORMAT)
 
     bad_sig_metadata_path = os.path.join(SAMPLE_DATA_DIR,
-        'sample_pv_secondary_target_metadata_bad_sig.' +
-        tuf.conf.METADATA_FORMAT)
+        'director_targets_bad_sig_v2.' + tuf.conf.METADATA_FORMAT)
 
     expired_metadata_path = os.path.join(SAMPLE_DATA_DIR,
         'director_targets_expired_v3.' + tuf.conf.METADATA_FORMAT)
