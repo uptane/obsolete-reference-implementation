@@ -763,7 +763,7 @@ class TestSecondary(unittest.TestCase):
 
   def test_45_process_partial_metadata(self):
     """
-    Tests uptane.clients.secondary.Secondary::process_partial_metadata()
+    Tests uptane.clients.secondary.Secondary.process_partial_metadata()
 
     Tests PV Secondary client in 2 situations:
      - secondary_instances[3]: Director's targets metadata available with
