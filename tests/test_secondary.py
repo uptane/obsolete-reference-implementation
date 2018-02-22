@@ -883,24 +883,56 @@ class TestSecondary(unittest.TestCase):
 
   def test_50_validate_image(self):
 
-    image_fname = 'TCU1.1.txt'
+    # In these tests, the full verification Secondaries were or were not given
+    # instructions to install TCU1.1.txt, and the partial verification
+    # Secondary was given an instruction to install BCU1.0.txt.
+    fv_image_fname = 'TCU1.1.txt'
+    pv_image_fname = 'BCU1.0.txt'
     sample_image_location = os.path.join(demo.DEMO_DIR, 'images')
-    client_unverified_targets_dir = TEMP_CLIENT_DIRS[0] + '/unverified_targets'
+    fv_client_unverified_targets_dir = TEST_INSTANCES[0]['client_dir'] + \
+        '/unverified_targets'
+    pv_client_unverified_targets_dir = TEST_INSTANCES[3]['client_dir'] + \
+        '/unverified_targets'
 
-    if os.path.exists(client_unverified_targets_dir):
-      shutil.rmtree(client_unverified_targets_dir)
-    os.mkdir(client_unverified_targets_dir)
 
+    # Copy the firmware into the Secondary's unverified targets directory.
+    # (This is what the Secondary would do when receiving the file from
+    # the Primary.)
+    # Delete and recreate the unverified targets directory first.
+    for instance_data in TEST_INSTANCES:
+      client_unverified_targets_dir = os.path.join(
+          instance_data['client_dir'], 'unverified_targets')
+
+      if os.path.exists(client_unverified_targets_dir):
+        shutil.rmtree(client_unverified_targets_dir)
+      os.mkdir(client_unverified_targets_dir)
+
+      if instance_data['partial_verifying']:
+        image_fname = pv_image_fname
+      else:
+        image_fname = fv_image_fname
+
+      shutil.copy(
+          os.path.join(sample_image_location, image_fname),
+          client_unverified_targets_dir)
+
+
+    # For each Secondary, try validating the appropriate firmware image.
+    # Secondaries 0-2 are running full verification.
+    TEST_INSTANCES[0]['instance'].validate_image(fv_image_fname)
+
+    with self.assertRaises(uptane.Error):
+      TEST_INSTANCES[1]['instance'].validate_image(fv_image_fname)
+    with self.assertRaises(uptane.Error):
+      TEST_INSTANCES[2]['instance'].validate_image(fv_image_fname)
+
+    # Secondary 3 is running partial verification and was given metadata
+    # indicating the following firmware:
     shutil.copy(
-        os.path.join(sample_image_location, image_fname),
+        os.path.join(sample_image_location, pv_image_fname),
         client_unverified_targets_dir)
+    TEST_INSTANCES[3]['instance'].validate_image(pv_image_fname)
 
-    secondary_instances[0].validate_image(image_fname)
-
-    with self.assertRaises(uptane.Error):
-      secondary_instances[1].validate_image(image_fname)
-    with self.assertRaises(uptane.Error):
-      secondary_instances[2].validate_image(image_fname)
 
 
 
