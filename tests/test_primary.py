@@ -11,6 +11,7 @@
 from __future__ import unicode_literals
 
 import uptane # Import before TUF modules; may change tuf.conf values.
+from io import open # To add support for Python 2
 
 import unittest
 import os.path
@@ -63,7 +64,8 @@ SAMPLE_TARGETS = os.path.join(uptane.WORKING_DIR, 'demo', 'images')
 NONCE = 5
 VIN = 'democar'
 PRIMARY_ECU_SERIAL = '00000'
-
+PRIMARY_RELEASE_COUNTER = 1
+PRIMARY_HARDWARE_ID = 'Infotainment101'
 
 
 def destroy_temp_dir():
@@ -118,6 +120,8 @@ class TestPrimary(unittest.TestCase):
     cls.initial_time = tuf.formats.unix_timestamp_to_datetime(
         int(time.time())).isoformat() + 'Z'
     tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(cls.initial_time)
+
+    
 
 
 

@@ -83,6 +83,23 @@ class Secondary(object):
       corresponding public key, so that it can validate these ECU Manifests.
       Conforms to tuf.formats.ANYKEY_SCHEMA.
 
+    self.hardware_id
+      An identifier for a group of ECUs that helps ensure the installation
+      of the right firmware is installed.
+      Verified for installation if the value matches both in the
+      Image Repository and Director Repository.
+      Conforms to uptane.formats.HARDWARE_ID_SCHEMA.
+      This is used to prevent a compromised director from causing an
+      ECU to download an image not intended for it.
+
+    self.release_counter
+      An integer value to track the version number of the images installed.
+      Ensures that an older image than the one currently installed is
+      not installed.
+      Conforms to uptane.formats.RELEASE_COUNTER_SCHEMA.
+      This is used to prevent a compromised director from causing an ECU
+      to download an outdated image or an older one with known vulnerabilities.
+
     self.updater:
       A tuf.client.updater.Updater object used to retrieve metadata and
       target files from the Director and Image repositories.
@@ -176,6 +193,8 @@ class Secondary(object):
     ecu_key,
     time,
     timeserver_public_key,
+    hardware_id,
+    release_counter=0,
     firmware_fileinfo=None,
     director_public_key=None,
     partial_verifying=False):
@@ -233,6 +252,8 @@ class Secondary(object):
     tuf.formats.PATH_SCHEMA.check_match(director_repo_name)
     uptane.formats.VIN_SCHEMA.check_match(vin)
     uptane.formats.ECU_SERIAL_SCHEMA.check_match(ecu_serial)
+    uptane.formats.HARDWARE_ID_SCHEMA.check_match(hardware_id)
+    uptane.formats.RELEASE_COUNTER_SCHEMA.check_match(release_counter)
     tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(time)
     tuf.formats.ANYKEY_SCHEMA.check_match(timeserver_public_key)
     tuf.formats.ANYKEY_SCHEMA.check_match(ecu_key)
@@ -249,6 +270,8 @@ class Secondary(object):
     self.director_public_key = director_public_key
     self.partial_verifying = partial_verifying
     self.firmware_fileinfo = firmware_fileinfo
+    self.hardware_id = hardware_id
+    self.release_counter = release_counter
 
     if not self.partial_verifying and self.director_public_key is not None:
       raise uptane.Error('Secondary not set as partial verifying, but a director ' # TODO: Choose error class.
@@ -341,6 +364,8 @@ class Secondary(object):
     # First, construct and check an ECU_VERSION_MANIFEST_SCHEMA.
     ecu_manifest = {
         'ecu_serial': self.ecu_serial,
+        'hardware_id': self.hardware_id,
+        'release_counter': self.release_counter,
         'installed_image': self.firmware_fileinfo,
         'timeserver_time': self.all_valid_timeserver_times[-1],
         'previous_timeserver_time': self.all_valid_timeserver_times[-2],
@@ -497,8 +522,43 @@ class Secondary(object):
       # Ignore target info not marked as being for this ECU.
       if 'custom' not in target['fileinfo'] or \
           'ecu_serial' not in target['fileinfo']['custom'] or \
+          'hardware_id' not in target['fileinfo']['custom'] or \
+          'release_counter' not in target['fileinfo']['custom'] or \
           self.ecu_serial != target['fileinfo']['custom']['ecu_serial']:
         continue
+
+      elif self.hardware_id != \
+          target['fileinfo']['custom']['hardware_id']:
+
+          log.warning(RED + 'Received a target from the Director with \
+              instructions to install an Image on self with ECU_Serial {} \
+              with mismatching hardwareID. Diregarding/not downloading \
+              target for saving. The target is {}'.format(self.ecu_serial, \
+              repr(target))+ ENDCOLORS)
+
+          raise uptane.HardwareIDMismatch("The director has instructed the ECU \
+              to download an image the hardware_id of which does not match that \
+              of the ecu. ImageRepo Value was {}. Director value is {} \
+              Image rejected".format(self.hardware_id, \
+              target['fileinfo']['custom']['hardware_id']))
+          continue
+
+      elif self.release_counter > \
+          target['fileinfo']['custom']['release_counter']:
+
+          log.warning(RED + 'Received a target from the Director \
+              with instructions to install an Image {} on self with \
+              ECU_Serial {} with lower value of release counter than current. \
+              Diregarding/not downloading target for saving. \
+              The target is {}'.format(target['filepath'], self.ecu_serial,\
+              repr(target))+ ENDCOLORS)
+
+          raise uptane.ImageRollBack("The director has instructed the ECU \
+              to download an image that has a lower relase counter than \
+              the current. Original Value was {}. New value is {} \
+              Image rejected".format(self.release_counter, \
+              target['fileinfo']['custom']['release_counter']))
+          continue
 
       # Fully validate the target info for our target(s).
       try:
@@ -513,6 +573,13 @@ class Secondary(object):
 
 
     self.validated_targets_for_this_ecu = validated_targets_for_this_ecu
+
+
+
+
+
+  def update_release_counter(self, new_release_counter_val):
+    self.release_counter = new_release_counter_val
 
 
 
@@ -560,7 +627,14 @@ class Secondary(object):
     self._expand_metadata_archive(metadata_archive_fname)
 
     # This entails using the local metadata files as a repository.
-    self.fully_validate_metadata()
+    try:
+      self.fully_validate_metadata()
+    except uptane.ImageRollBack:
+      log.warning(RED + "Image rollback attack detected. Conitnuing" + ENDCOLORS)
+    except uptane.HardwareIDMismatch:
+      log.warning(RED + "HardwareID Mismatch attack detected. Conitnuing" + ENDCOLORS)
+ 
+
 
 
 

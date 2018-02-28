@@ -12,7 +12,7 @@ import logging, time # both for logging
 
  # Configure TUF to use DER format instead of Python dictionaries / JSON.
 import tuf.conf
-tuf.conf.METADATA_FORMAT = 'der'
+tuf.conf.METADATA_FORMAT = 'json'
 
 # FIXME: I actually think other modules rely on the `os` imported here and
 # not just for getcwd
@@ -75,6 +75,19 @@ class FailedToEncodeASN1DER(Error):
   """
   pass
 
+class HardwareIDMismatch(Error):
+  """
+  Received an image to install by director that doesn't match HardwareID of the
+  ECU.
+  """
+  pass
+
+class ImageRollBack(Error):
+  """
+  Received an image to download with the Release Counter value lower than
+  the one already installed.
+  """
+  pass
 
 # Logging configuration
 
