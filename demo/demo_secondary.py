@@ -79,7 +79,8 @@ def clean_slate(
     vin=_vin,
     ecu_serial=_ecu_serial,
     primary_host=None,
-    primary_port=None):
+    primary_port=None,
+    partial_verifying=False):
   """
   """
 
@@ -91,7 +92,6 @@ def clean_slate(
   global nonce
   global CLIENT_DIRECTORY
   global attacks_detected
-
   _vin = vin
   _ecu_serial = ecu_serial
 
@@ -142,6 +142,11 @@ def clean_slate(
   tuf.conf.repository_directory = CLIENT_DIRECTORY # This setting should probably be called CLIENT_DIRECTORY instead, post-TAP4.
 
 
+  #Importing director's public key if secondary is partial verification
+  if partial_verifying:
+    key_director_pub = demo.import_public_key('director')
+  else:
+    key_director_pub = None
 
   # Initialize a full verification Secondary ECU.
   # This also generates a nonce to use in the next time query, sets the initial
@@ -154,7 +159,9 @@ def clean_slate(
       ecu_key=ecu_key,
       time=clock,
       firmware_fileinfo=factory_firmware_fileinfo,
-      timeserver_public_key=key_timeserver_pub)
+      timeserver_public_key=key_timeserver_pub,
+      director_public_key = key_director_pub,
+      partial_verifying = partial_verifying)
 
 
 
@@ -300,9 +307,14 @@ def update_cycle():
     # from it like so:
     time_attestation = time_attestation.data
 
-  # Download the metadata from the Primary in the form of an archive. This
-  # returns the binary data that we need to write to file.
-  metadata_archive = pserver.get_metadata(secondary_ecu.ecu_serial)
+  # Obtain metadata from the Primary, either as a single role file (the
+  # Director Targets role file) if this is a partial-verification Secondary,
+  # or as an archive that includes all the metadata files if this is a full-
+  # verification Secondary.
+  # This call returns the binary data that we need to write to the file.
+
+  metadata_from_primary = pserver.get_metadata(
+      secondary_ecu.ecu_serial, secondary_ecu.partial_verifying)
 
   # Validate the time attestation and internalize the time. Continue
   # regardless.
@@ -320,16 +332,23 @@ def update_cycle():
   #else:
   #  print(GREEN + 'Official time has been updated successfully.' + ENDCOLORS)
 
-  # Dump the archive file to disk.
-  archive_fname = os.path.join(
-      secondary_ecu.full_client_dir, 'metadata_archive.zip')
+  # Write the metadata retrieved from the Primary to disk, whether it is a
+  # single role file (partial verification) or the full metadata archive.
+  if secondary_ecu.partial_verifying:
+    director_targets_role = os.path.join(
+        secondary_ecu.full_client_dir, 'director_targets.'+tuf.conf.METADATA_FORMAT)
+    with open(director_targets_role, 'wb') as f:
+      f.write(metadata_from_primary.data)
+    secondary_ecu.process_metadata(director_targets_role)
+  else:
+    archive_fname = os.path.join(
+        secondary_ecu.full_client_dir, 'metadata_from_primary.zip')
+    with open(archive_fname, 'wb') as fobj:
+      fobj.write(metadata_from_primary.data)
 
-  with open(archive_fname, 'wb') as fobj:
-    fobj.write(metadata_archive.data)
-
-  # Now tell the Secondary reference implementation code where the archive file
-  # is and let it expand and validate the metadata.
-  secondary_ecu.process_metadata(archive_fname)
+    # Now tell the Secondary reference implementation code where the archive
+    # file is and let it expand (as necessary) and validate the metadata.
+    secondary_ecu.process_metadata(archive_fname)
 
 
   # As part of the process_metadata call, the secondary will have saved
