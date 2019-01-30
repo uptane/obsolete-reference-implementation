@@ -803,6 +803,34 @@ class TestDirector(unittest.TestCase):
 
 
 
+  def test_61_delete_existing_vehicle(self):
+
+    vin = 'democar'
+
+    self.assertTrue(inventory.ecus_by_vin)
+    self.assertTrue(inventory.ecu_public_keys)
+    self.assertTrue(inventory.primary_ecus_by_vin)
+    self.assertTrue(inventory.vehicle_manifests)
+    self.assertTrue(inventory.ecu_manifests)
+
+    self.assertIsNotNone(inventory.get_last_vehicle_manifest(vin))
+
+    #Delete the vehicle
+    TestDirector.instance.remove_vehicle(vin)
+    os.chdir(uptane.WORKING_DIR)
+
+    self.assertNotIn(vin, inventory.ecus_by_vin)
+    self.assertNotIn(vin, inventory.primary_ecus_by_vin)
+
+    with self.assertRaises(uptane.UnknownVehicle):
+      inventory.get_last_vehicle_manifest(vin)
+
+    #check vin no longer exists in the repo
+    self.assertNotIn(vin, TestDirector.instance.vehicle_repositories)
+
+
+
+
 
 # Run unit test.
 if __name__ == '__main__':
