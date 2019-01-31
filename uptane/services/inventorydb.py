@@ -356,13 +356,12 @@ def register_vehicle(vin, primary_ecu_serial=None, overwrite=True):
 def deregister_vehicle(vin):
 
   _check_registration_is_sane(vin)
-  print("deregistering: " + str(vin))
-  print("The dictionary is: ")
-  print(ecus_by_vin)
-  if check_vin_registered(vin):
-      ecus_by_vin.pop(vin)
-      vehicle_manifest.pop(vin)
-      primary_ecus_by_vin.pop(vin)
+  check_vin_registered(vin)
+
+  #If no error is found, delete from dictionaries
+  ecus_by_vin.pop(vin)
+  vehicle_manifests.pop(vin)
+  primary_ecus_by_vin.pop(vin)
 
 
 
@@ -375,9 +374,9 @@ def check_vin_registered(vin):
   if vin not in vehicle_manifests:
     # TODO: Should we also log here? Review logging before exceptions
     # throughout the reference implementation.
-    print(vin) 
     raise uptane.UnknownVehicle('The given VIN, ' + repr(vin) + ', is not '
         'known.')
+
 
 
 

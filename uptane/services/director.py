@@ -496,7 +496,7 @@ class Director:
     These repository objects can be manipulated as described in TUF
     documentation; for example, to produce metadata files afterwards for that
     vehicle:
-      d.vehicle_reposaitories[vin].write()
+      d.vehicle_repositories[vin].write()
 
 
     # TODO: This may be outside of the scope of the reference implementation,
@@ -549,6 +549,7 @@ class Director:
 
     if existing_vehicle_repo:
       shutil.rmtree(existing_vehicle_repo.repository_name)
+      self.vehicle_repositories.pop(vin)
 
 
 
