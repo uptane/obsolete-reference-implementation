@@ -470,6 +470,75 @@ class Secondary(object):
 
 
 
+  def refresh_toplevel_metadata_from_repositories(self):
+    """
+    Refreshes client's metadata for the top-level roles:
+      root, targets, snapshot, and timestamp
+
+    See tuf.client.updater.Updater.refresh() for details, or the
+    Uptane Implementation Specification, section 8.3.2 (Full Verification of
+    Metadata).
+
+    # TODO: Handle the duplicated code!  This is the same in primary.py.
+    """
+
+    # In order to provide Timeserver fast-forward attack protection, we do more
+    # than simply calling updater.refresh().  Instead, we:
+    #  1. Make note of the Timeserver key listed in the root metadata currently
+    #     trusted by this client.
+    #  2. Attempt updater.refresh()
+    #  3. If refresh() failed (preferably only do this if it failed due to
+    #     expired metadata), check to see if the Timeserver key listed in the
+    #     root metadata NOW currently trusted is the same as before.  If it is
+    #     not, reset the clock and try to refresh() one more time.
+    #  4. Else if refresh() succeeded, check to see if the Timeserver key
+    #     listed in the root metadata NOW currently trusted is the same as
+    #     before.  If it is not, reset the clock.  Don't bother calling
+    #     refresh() again, though.
+
+
+    # Make note of the currently-trusted Timeserver key.
+    current_trusted_timeserver_key = \
+          self.updater.metadata['current']['root']['roles']['timeserver']
+
+    try:
+      self.updater.refresh()
+
+    except (tuf.NoWorkingMirrorError, tuf.ExpiredMetadataError):
+      # TODO: <~> In the except line above, see if it's sufficient to only
+      #           catch ExpiredMetadataError here.  (When do we get
+      #           ExpiredMetadataError instead of NoWorkingMirrorError?
+      #           Do we need to comb through the component errors in the
+      #           NoWorkingMirrorErrors looking for ExpiredMetadataError?)
+
+      new_trusted_timeserver_key = \
+          self.updater.metadata['current']['root']['roles']['timeserver']
+
+      if current_trusted_timeserver_key != new_trusted_timeserver_key:
+        self.reset_clock()
+        self.updater.refresh()
+
+    else:
+      new_trusted_timeserver_key = \
+          self.updater.metadata['current']['root']['roles']['timeserver']
+
+      if current_trusted_timeserver_key != new_trusted_timeserver_key:
+        self.reset_clock()
+
+
+
+
+
+  def reset_clock(self):
+    '''Reset the clock to epoch and discard old timeserver attestations.'''
+    tuf.conf.CLOCK_OVERRIDE = 0
+    self.all_valid_timeserver_times = [time.gmtime(0)]
+    self.all_valid_timeserver_attestations = []
+
+
+
+
+
   def fully_validate_metadata(self):
     """
     Treats the unvalidated metadata obtained from the Primary (which the
@@ -504,7 +573,7 @@ class Secondary(object):
     """
 
     # Refresh the top-level metadata first (all repositories).
-    self.updater.refresh()
+    self.refresh_toplevel_metadata_from_repositories()
 
     validated_targets_for_this_ecu = []
 

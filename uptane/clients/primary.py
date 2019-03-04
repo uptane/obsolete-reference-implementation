@@ -341,7 +341,59 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     Uptane Implementation Specification, section 8.3.2 (Full Verification of
     Metadata).
     """
-    self.updater.refresh()
+
+    # In order to provide Timeserver fast-forward attack protection, we do more
+    # than simply calling updater.refresh().  Instead, we:
+    #  1. Make note of the Timeserver key listed in the root metadata currently
+    #     trusted by this client.
+    #  2. Attempt updater.refresh()
+    #  3. If refresh() failed (preferably only do this if it failed due to
+    #     expired metadata), check to see if the Timeserver key listed in the
+    #     root metadata NOW currently trusted is the same as before.  If it is
+    #     not, reset the clock and try to refresh() one more time.
+    #  4. Else if refresh() succeeded, check to see if the Timeserver key
+    #     listed in the root metadata NOW currently trusted is the same as
+    #     before.  If it is not, reset the clock.  Don't bother calling
+    #     refresh() again, though.
+
+
+    # Make note of the currently-trusted Timeserver key.
+    current_trusted_timeserver_key = \
+          self.updater.metadata['current']['root']['roles']['timeserver']
+
+    try:
+      self.updater.refresh()
+
+    except (tuf.NoWorkingMirrorError, tuf.ExpiredMetadataError):
+      # TODO: <~> In the except line above, see if it's sufficient to only
+      #           catch ExpiredMetadataError here.  (When do we get
+      #           ExpiredMetadataError instead of NoWorkingMirrorError?
+      #           Do we need to comb through the component errors in the
+      #           NoWorkingMirrorErrors looking for ExpiredMetadataError?)
+
+      new_trusted_timeserver_key = \
+          self.updater.metadata['current']['root']['roles']['timeserver']
+
+      if current_trusted_timeserver_key != new_trusted_timeserver_key:
+        self.reset_clock()
+        self.updater.refresh()
+
+    else:
+      new_trusted_timeserver_key = \
+          self.updater.metadata['current']['root']['roles']['timeserver']
+
+      if current_trusted_timeserver_key != new_trusted_timeserver_key:
+        self.reset_clock()
+
+
+
+
+
+  def reset_clock(self):
+    '''Reset the clock to epoch and discard old timeserver attestations.'''
+    tuf.conf.CLOCK_OVERRIDE = 0
+    self.all_valid_timeserver_times = [time.gmtime(0)]
+    self.all_valid_timeserver_attestations = []
 
 
 
