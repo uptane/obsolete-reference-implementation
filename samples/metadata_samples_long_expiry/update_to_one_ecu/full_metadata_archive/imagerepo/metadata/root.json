@@ -3,7 +3,7 @@
   {
    "keyid": "94c836f0c45168f0a437eef0e487b910f58db4d462ae457b5730a4487130f290",
    "method": "ed25519",
-   "sig": "bdbbbfa6b75e98bbc5f04549f1b181e39cc7c8ad8bd86a41c061825e01ed5d2cf1a294cb45f7441cb15fe0302264a98c7813af699c12ba25ccee08878436c20b"
+   "sig": "b8dcfed4e1ab955968b3d94eb173a1f6440dc2bd8fe5dcde10fd1c10aa1feeb44c306e3f2375ecd859267307959ffdb549108e8598e39d150f8e1ffecb15860e"
   }
  ],
  "signed": {
@@ -12,7 +12,7 @@
    "gz"
   ],
   "consistent_snapshot": false,
-  "expires": "2037-09-28T12:46:18Z",
+  "expires": "2038-01-18T03:14:07Z",
   "keys": {
    "6fcd9a928358ad8ca7e946325f57ec71d50cb5977a8d02c5ab0de6765fef040a": {
     "keyid_hash_algorithms": [
@@ -56,6 +56,12 @@
    }
   },
   "roles": {
+   "Timeserver": {
+    "keyids": [
+     "79c796d7e87389d1ebad04edce49faef611d139ee41ea9fb1931732afbfaac2e"
+    ],
+    "threshold": 1
+   },
    "root": {
     "keyids": [
      "94c836f0c45168f0a437eef0e487b910f58db4d462ae457b5730a4487130f290"

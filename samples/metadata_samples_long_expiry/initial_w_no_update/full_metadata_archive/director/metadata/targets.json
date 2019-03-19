@@ -3,7 +3,7 @@
   {
    "keyid": "630cf584f392430b2119a4395e39624e86f5e5c5374507a789be5cf35bf090d6",
    "method": "ed25519",
-   "sig": "263a6d873455bac478366d92edc04cac55cc0e545b5f4249cf696254263d58de6a225446ce96725bccb83ffdaab548fcd89cb790020039ef336fb422364c1800"
+   "sig": "ee8c2399a95889c3db401200f5607d85b510427ee0e3905fd9ee91c0159952f6786eb02ff6b46fb33373043ab2f0e5637277ea0406b229010b2d4ecb45da0508"
   }
  ],
  "signed": {
@@ -12,7 +12,7 @@
    "keys": {},
    "roles": []
   },
-  "expires": "2037-09-28T12:46:29Z",
+  "expires": "2038-01-18T03:14:19Z",
   "targets": {},
   "version": 1
  }
