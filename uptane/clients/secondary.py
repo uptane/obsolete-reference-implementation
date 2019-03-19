@@ -499,7 +499,7 @@ class Secondary(object):
 
     # Make note of the currently-trusted Timeserver key.
     current_trusted_timeserver_key = self.updater.get_metadata(
-        self.director_repo_name, 'current')['root']['roles']['timeserver']
+        self.director_repo_name, 'current')['root']['roles']['Timeserver']
 
     try:
       self.updater.refresh()
@@ -512,7 +512,7 @@ class Secondary(object):
       #           NoWorkingMirrorErrors looking for ExpiredMetadataError?)
 
       new_trusted_timeserver_key = self.updater.get_metadata(
-          self.director_repo_name, 'current')['root']['roles']['timeserver']
+          self.director_repo_name, 'current')['root']['roles']['Timeserver']
 
       if current_trusted_timeserver_key != new_trusted_timeserver_key:
         self.reset_clock()
@@ -520,7 +520,7 @@ class Secondary(object):
 
     else:
       new_trusted_timeserver_key = self.updater.get_metadata(
-          self.director_repo_name, 'current')['root']['roles']['timeserver']
+          self.director_repo_name, 'current')['root']['roles']['Timeserver']
 
       if current_trusted_timeserver_key != new_trusted_timeserver_key:
         self.reset_clock()

@@ -359,7 +359,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
 
     # Make note of the currently-trusted Timeserver key.
     current_trusted_timeserver_key = self.updater.get_metadata(
-        self.director_repo_name, 'current')['root']['roles']['timeserver']
+        self.director_repo_name, 'current')['root']['roles']['Timeserver']
 
     try:
       self.updater.refresh()
@@ -372,7 +372,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
       #           NoWorkingMirrorErrors looking for ExpiredMetadataError?)
 
       new_trusted_timeserver_key = self.updater.get_metadata(
-          self.director_repo_name, 'current')['root']['roles']['timeserver']
+          self.director_repo_name, 'current')['root']['roles']['Timeserver']
 
       if current_trusted_timeserver_key != new_trusted_timeserver_key:
         self.reset_clock()
@@ -380,7 +380,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
 
     else:
       new_trusted_timeserver_key = self.updater.get_metadata(
-          self.director_repo_name, 'current')['root']['roles']['timeserver']
+          self.director_repo_name, 'current')['root']['roles']['Timeserver']
 
       if current_trusted_timeserver_key != new_trusted_timeserver_key:
         self.reset_clock()
