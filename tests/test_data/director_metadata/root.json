@@ -3,7 +3,7 @@
   {
    "keyid": "fdba7eaa358fa5a8113a789f60c4a6ce29c4478d8d8eff3e27d1d77416696ab2",
    "method": "ed25519",
-   "sig": "a976e1b7b5ff03505a709ad3f0af13ad1ab0683752e9dced52735d2fb0d3086292c78b00472c1b59e4e3b5a90d42ad53be419de069aa8c6b176d202f96621c06"
+   "sig": "2ab82986eb585c970cd972cf647a7d98f0c8d44744f091d19821edf2dd746c3b56d0dc777b364d1b383503ff44bdbe33ce1443576117c816bb1c17b6f2240e00"
   }
  ],
  "signed": {
@@ -22,6 +22,16 @@
     "keytype": "ed25519",
     "keyval": {
      "public": "99ef8790687ca252c4677a80a34e401efb7e17ccdf9b0fcb5f1bc3260c432cb9"
+    }
+   },
+   "79c796d7e87389d1ebad04edce49faef611d139ee41ea9fb1931732afbfaac2e": {
+    "keyid_hash_algorithms": [
+     "sha256",
+     "sha512"
+    ],
+    "keytype": "ed25519",
+    "keyval": {
+     "public": "5d7750b208dfc7ade8f6106b9c3fa25162d5a184f302161e429f19a79e66a908"
     }
    },
    "da9c65c96c5c4072f6984f7aa81216d776aca6664d49cb4dfafbc7119320d9cc": {

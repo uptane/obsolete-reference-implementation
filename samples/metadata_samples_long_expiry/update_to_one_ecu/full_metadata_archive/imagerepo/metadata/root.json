@@ -1,9 +1,9 @@
 {
  "signatures": [
   {
-   "keyid": "94c836f0c45168f0a437eef0e487b910f58db4d462ae457b5730a4487130f290",
+   "keyid": "fdba7eaa358fa5a8113a789f60c4a6ce29c4478d8d8eff3e27d1d77416696ab2",
    "method": "ed25519",
-   "sig": "b8dcfed4e1ab955968b3d94eb173a1f6440dc2bd8fe5dcde10fd1c10aa1feeb44c306e3f2375ecd859267307959ffdb549108e8598e39d150f8e1ffecb15860e"
+   "sig": "e47bc67e9d4433ad91f7e3b22b09752c735ba7f84a7812f9a6be086cdad70cbd8b93d68cea3ed94beb514aa099740046c352486dade1c60f68a3a24ce427e900"
   }
  ],
  "signed": {
@@ -56,12 +56,6 @@
    }
   },
   "roles": {
-   "Timeserver": {
-    "keyids": [
-     "79c796d7e87389d1ebad04edce49faef611d139ee41ea9fb1931732afbfaac2e"
-    ],
-    "threshold": 1
-   },
    "root": {
     "keyids": [
      "94c836f0c45168f0a437eef0e487b910f58db4d462ae457b5730a4487130f290"
