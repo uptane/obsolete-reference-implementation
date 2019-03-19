@@ -515,8 +515,24 @@ class Secondary(object):
           self.director_repo_name, 'current')['root']['roles']['Timeserver']
 
       if current_trusted_timeserver_key != new_trusted_timeserver_key:
+        # TODO: Consider another, more invasive way to accomplish this (within
+        #       root chain verification, after switch to theupdateframework/tuf)
+        #       because there's a corner case here that isn't addressed:
+        #       Suppose in root version X you change the Timeserver key after a
+        #       fast-forward attack, then later in root version Y, change it
+        #       back because you decide the key was not exposed or something....
+        #       If a client goes from root version X-1 to root version Y within
+        #       this update cycle (it would root chain within the refresh
+        #       call), then we won't notice here that the key ever changed,
+        #       and we won't resolve the fast-forward attack.  Detection should
+        #       occur at a lower level, in every root chain link step.
+        #       This will do for now, but fix the corner case by moving this
+        #       check.
         self.reset_clock()
         self.updater.refresh()
+
+      else:
+        raise
 
     else:
       new_trusted_timeserver_key = self.updater.get_metadata(
