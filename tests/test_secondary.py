@@ -751,6 +751,69 @@ class TestSecondary(unittest.TestCase):
 
 
 
+  def test_90_timeserver_key_rotation(self):
+    # This test works only in JSON mode.  ASN.1/DER metadata has not been
+    # extended here to enable Timeserver key rotation.
+
+    # Note that this test, like the rest in this test module, builds on prior
+    # tests, and should not be run on its own.
+
+    # Use the first test Secondary instance, which has by now verified metadata.
+    # Try updating to a later version of metadata that indicates a different
+    # Timeserver key in the Director's Root metadata.
+
+    if tuf.conf.METADATA_FORMAT == 'der':
+      print('Skipping Test 90 in DER mode.')
+      return
+
+    instance = secondary_instances[0]
+
+    archive_with_rotated_key = os.path.join(
+        SAMPLES_DIR, 'metadata_samples_long_expiry', 'timeserver_key_rotated',
+        'full_metadata_archive.zip')
+
+    initially_trusted_timeserver_keyid = \
+        instance.timeserver_public_key['keyid']
+
+    # Make sure that the currently trusted Root metadata in the Secondary's
+    # updater for the Director repository lists the same Timeserver keyid as the
+    # Secondary has noted is the currently trusted Timeserver key's keyid.
+    self.assertEqual(
+        initially_trusted_timeserver_keyid,
+        instance.updater.repositories['director'].metadata['current']['root']
+        ['roles']['Timeserver']['keyids'][0])
+
+    self.assertEqual(
+        '79c796d7e87389d1ebad04edce49faef611d139ee41ea9fb1931732afbfaac2e',
+        initially_trusted_timeserver_keyid)
+
+    # Update to the new metadata with the new Timeserver key.
+    instance.process_metadata(archive_with_rotated_key)
+
+    now_trusted_timeserver_keyid = \
+        instance.timeserver_public_key['keyid']
+
+    # Make sure that the currently trusted Root metadata in the Secondary's
+    # updater for the Director repository lists the same Timeserver keyid as the
+    # Secondary has noted is the currently trusted Timeserver key's keyid.
+    self.assertEqual(
+        now_trusted_timeserver_keyid,
+        instance.updater.repositories['director'].metadata['current']['root']
+        ['roles']['Timeserver']['keyids'][0])
+
+    self.assertEqual(
+        'da9c65c96c5c4072f6984f7aa81216d776aca6664d49cb4dfafbc7119320d9cc',
+        now_trusted_timeserver_keyid)
+
+    # For good measure, to avoid stupid mistakes in future test code changes.
+    # Make sure the key changed.
+    self.assertNotEqual(
+        initially_trusted_timeserver_keyid, now_trusted_timeserver_keyid)
+
+
+
+
+
 # Run unit tests.
 if __name__ == '__main__':
   unittest.main()
