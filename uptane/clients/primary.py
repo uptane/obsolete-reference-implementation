@@ -471,7 +471,8 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
 
     # Reset the clock to epoch and discard previously-trusted time attestations.
     tuf.conf.CLOCK_OVERRIDE = 0
-    self.all_valid_timeserver_times = [time.gmtime(0)]
+    self.all_valid_timeserver_times = [tuf.formats.unix_timestamp_to_datetime(
+        0).isoformat() + 'Z']
     self.all_valid_timeserver_attestations = []
 
 
