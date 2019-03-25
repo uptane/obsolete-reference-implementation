@@ -19,6 +19,7 @@ import time
 import shutil
 import hashlib
 import iso8601
+import time
 
 from six.moves.urllib.error import URLError
 
@@ -31,6 +32,7 @@ import uptane.formats
 import uptane.clients.secondary as secondary
 import uptane.common # verify sigs, create client dir structure, convert key
 import uptane.encoding.asn1_codec as asn1_codec
+import uptane.services.timeserver as timeserver
 
 from uptane.encoding.asn1_codec import DATATYPE_TIME_ATTESTATION
 from uptane.encoding.asn1_codec import DATATYPE_ECU_MANIFEST
@@ -55,17 +57,18 @@ TEST_PINNING_FNAME = os.path.join(TEST_DATA_DIR, 'pinned.json')
 TEMP_CLIENT_DIRS = [
     os.path.join(TEST_DATA_DIR, 'temp_test_secondary0'),
     os.path.join(TEST_DATA_DIR, 'temp_test_secondary1'),
-    os.path.join(TEST_DATA_DIR, 'temp_test_secondary2')]
+    os.path.join(TEST_DATA_DIR, 'temp_test_secondary2'),
+    os.path.join(TEST_DATA_DIR, 'temp_test_secondary3')]
 
 # I'll initialize these in the __init__ test, and use this for the simple
 # non-damaging tests so as to avoid creating objects all over again.
-secondary_instances = [None, None, None]
+secondary_instances = [None, None, None, None]
 
 # Changing these values would require producing new signed test data from the
 # Timeserver (in the case of nonce) or a Secondary (in the case of the others).
 nonce = 5
-vins = ['democar', 'democar', '000']
-ecu_serials = ['TCUdemocar', '00000', '00000']
+vins = ['democar', 'democar', '000', 'democar']
+ecu_serials = ['TCUdemocar', '00000', '00000', 'TCUdemocar']
 
 # Set starting firmware fileinfo (that this ECU had coming from the factory)
 # It will serve as the initial firmware state for the Secondary clients.
@@ -349,7 +352,7 @@ class TestSecondary(unittest.TestCase):
 
 
 
-    # Try initializing three Secondaries, expecting the three calls to work.
+    # Try initializing four Secondaries, expecting the four calls to work.
     # Save the instances for future tests as class variables to save time and
     # code.
 
@@ -360,13 +363,13 @@ class TestSecondary(unittest.TestCase):
     # it work for these tests.
 
 
-    # Initialize three clients and perform checks on each of them.
+    # Initialize four clients and perform checks on each of them.
     for i in range(0, len(TEMP_CLIENT_DIRS)):
       client_dir = TEMP_CLIENT_DIRS[i]
       ecu_serial = ecu_serials[i]
       vin = vins[i]
 
-      # Try initializing each of three secondaries, expecting these calls to
+      # Try initializing each of four secondaries, expecting these calls to
       # work. Save the instances for future tests as elements in a module list
       # variable(secondary_instances) to save time and code.
       tuf.conf.repository_directory = client_dir
@@ -445,7 +448,7 @@ class TestSecondary(unittest.TestCase):
       - change_nonce()
       - set_nonce_as_sent()
     """
-    # We'll just test one of the three client instances, since it shouldn't
+    # We'll just test one of the four client instances, since it shouldn't
     # make a difference.
     instance = secondary_instances[0]
 
@@ -468,7 +471,7 @@ class TestSecondary(unittest.TestCase):
     Tests uptane.clients.secondary.Secondary::update_time()
     """
 
-    # We'll just test one of the three client instances, since it shouldn't
+    # We'll just test one of the four client instances, since it shouldn't
     # make a difference.
     instance = secondary_instances[0]
 
@@ -571,7 +574,7 @@ class TestSecondary(unittest.TestCase):
     Tests uptane.clients.secondary.Secondary::generate_signed_ecu_manifest()
     """
 
-    # We'll just test one of the three client instances, since it shouldn't
+    # We'll just test one of the four client instances, since it shouldn't
     # make a difference.
     ecu_manifest = secondary_instances[0].generate_signed_ecu_manifest()
 
@@ -610,10 +613,11 @@ class TestSecondary(unittest.TestCase):
     """
     Tests uptane.clients.secondary.Secondary::process_metadata()
 
-    Tests three clients:
+    Tests four clients:
      - secondary_instances[0]: an update is provided in Director metadata
      - secondary_instances[1]: no update is provided in Director metadata
      - secondary_instances[2]: no Director metadata can be retrieved
+     - secondary_instances[3]: an update is provided in Director metadata (same as 0)
     """
 
     # --- Test this test module's setup (defensive)
@@ -678,7 +682,7 @@ class TestSecondary(unittest.TestCase):
               '/metadata/' + role + '.' + tuf.conf.METADATA_FORMAT))
 
 
-    # Verify the results of the test, which are different for the three clients.
+    # Verify the results of the test, which are different for the four clients.
 
     # First: Check the top-level metadata files in the client directories.
 
@@ -707,10 +711,13 @@ class TestSecondary(unittest.TestCase):
 
     # Second: Check targets each Secondary client has been instructed to
     # install (and has in turn validated).
-    # Client 0 should have validated expected_updated_fileinfo.
+    # Clients 0 and 3 should have validated expected_updated_fileinfo.
     self.assertEqual(
         expected_updated_fileinfo,
         secondary_instances[0].validated_targets_for_this_ecu[0])
+    self.assertEqual(
+        expected_updated_fileinfo,
+        secondary_instances[3].validated_targets_for_this_ecu[0])
 
     # Clients 1 and 2 should have no validated targets.
     self.assertFalse(secondary_instances[1].validated_targets_for_this_ecu)
@@ -752,22 +759,34 @@ class TestSecondary(unittest.TestCase):
 
 
   def test_90_timeserver_key_rotation(self):
-    # This test works only in JSON mode.  ASN.1/DER metadata has not been
-    # extended here to enable Timeserver key rotation.
+    '''
+    This test works only in JSON mode.  ASN.1/DER metadata has not been
+    extended here to enable Timeserver key rotation.
 
-    # Note that this test, like the rest in this test module, builds on prior
-    # tests, and should not be run on its own.
+    Note that this test, like the rest in this test module, builds on prior
+    tests, and should not be run on its own.
 
-    # Use the first test Secondary instance, which has by now verified metadata.
-    # Try updating to a later version of metadata that indicates a different
-    # Timeserver key in the Director's Root metadata.
+    Use the first test Secondary instance, which has by now verified metadata.
+    Try updating to a later version of metadata that indicates a different
+    Timeserver key in the Director's Root metadata.
+    '''
 
     if tuf.conf.METADATA_FORMAT == 'der':
-      print('Skipping Test 90 in DER mode.')
+      print('Skipping the JSON-only test_90_timeserver_key_rotation.')
       return
 
     instance = secondary_instances[0]
 
+    # Since we're switching clients, we should switch the TUF override time to
+    # what this client thinks it should be.  (We're cheating by juggling
+    # multiple clients in one process for testing purposes, and the TUF clock
+    # override is a module-level variable in tuf.conf, so it's common to all
+    # clients in a process.)  Use the last trusted time for the instance.
+    tuf.conf.CLOCK_OVERRIDE = int(tuf.formats.datetime_to_unix_timestamp(
+        iso8601.parse_date(instance.all_valid_timeserver_times[-1])))
+
+
+    # PREPARE an update with the timeserver key rotated.
     archive_with_rotated_key = os.path.join(
         SAMPLES_DIR, 'metadata_samples_long_expiry', 'timeserver_key_rotated',
         'full_metadata_archive.zip')
@@ -775,17 +794,32 @@ class TestSecondary(unittest.TestCase):
     initially_trusted_timeserver_keyid = \
         instance.timeserver_public_key['keyid']
 
-    # Make sure that the currently trusted Root metadata in the Secondary's
-    # updater for the Director repository lists the same Timeserver keyid as the
-    # Secondary has noted is the currently trusted Timeserver key's keyid.
+
+    # CHECK INITIAL state before the test:
+
+    # 1. There should be        trusted timeserver attestations.
+    self.assertEqual(3, len(instance.all_valid_timeserver_times))
+
+    # 2. The current trusted time should be '2016-11-02T21:06:05Z' from the
+    #    attestation in the sample metadata from prior tests.
+    # self.assertIsNotNone(tuf.conf.CLOCK_OVERRIDE)
+    self.assertEqual(
+        int(tuf.formats.datetime_to_unix_timestamp(iso8601.parse_date(
+        '2016-11-02T21:06:05Z'))), tuf.conf.CLOCK_OVERRIDE)
+
+    # 3. The currently trusted Root metadata in the Secondary's updater for the
+    #    Director repository should list the same Timeserver keyid as the
+    #    Secondary has noted is the currently trusted Timeserver key's keyid.
+    #    This should be the 79c79... key we know was in the original root
+    #    metadata.
     self.assertEqual(
         initially_trusted_timeserver_keyid,
         instance.updater.repositories['director'].metadata['current']['root']
         ['roles']['Timeserver']['keyids'][0])
-
     self.assertEqual(
         '79c796d7e87389d1ebad04edce49faef611d139ee41ea9fb1931732afbfaac2e',
         initially_trusted_timeserver_keyid)
+
 
     # Update to the new metadata with the new Timeserver key.
     instance.process_metadata(archive_with_rotated_key)
@@ -793,14 +827,27 @@ class TestSecondary(unittest.TestCase):
     now_trusted_timeserver_keyid = \
         instance.timeserver_public_key['keyid']
 
-    # Make sure that the currently trusted Root metadata in the Secondary's
-    # updater for the Director repository lists the same Timeserver keyid as the
-    # Secondary has noted is the currently trusted Timeserver key's keyid.
+
+    # CHECK RESULTING state:
+
+    # 1. There should be zero trusted timeserver attestations immediately after
+    #    rotation.
+    self.assertEqual(0, len(instance.all_valid_timeserver_attestations))
+
+    # 2. The trusted time and the TUF clock override should be 0, epoch start.
+    self.assertEqual(
+        ['1970-01-01T00:00:00Z'], instance.all_valid_timeserver_times)
+    self.assertEqual(0, tuf.conf.CLOCK_OVERRIDE)
+
+    # 3. The currently trusted Root metadata in the Secondary's updater for the
+    #    Director repository should list the same Timeserver keyid as the
+    #    Secondary has noted is the currently trusted Timeserver key's keyid.
+    #    This should be the da9c6... key we know is in the sample rotated
+    #    metadata.
     self.assertEqual(
         now_trusted_timeserver_keyid,
         instance.updater.repositories['director'].metadata['current']['root']
         ['roles']['Timeserver']['keyids'][0])
-
     self.assertEqual(
         'da9c65c96c5c4072f6984f7aa81216d776aca6664d49cb4dfafbc7119320d9cc',
         now_trusted_timeserver_keyid)
@@ -809,6 +856,231 @@ class TestSecondary(unittest.TestCase):
     # Make sure the key changed.
     self.assertNotEqual(
         initially_trusted_timeserver_keyid, now_trusted_timeserver_keyid)
+
+
+
+
+
+  def test_95_timeserver_fastforward_attack(self):
+    '''
+    This test works only in JSON mode.  ASN.1/DER metadata has not been
+    extended here to enable Timeserver key rotation.
+
+    This is similar to test 90, except that we'll conduct a Timeserver
+    fast-forward attack before rotating the Timeserver key, make sure that the
+    attack impairs updating, check that the failed update during the attack had
+    no unexpected consequences, and after performing the rotation and updating
+    the Secondary, confirm that the attack is resolved.
+
+    We'll use the fourth test Secondary instance (secondary_instances[3]),
+    which was more or less identical to instance [0] until test 90 above.
+    '''
+
+    if tuf.conf.METADATA_FORMAT == 'der':
+      print('Skipping the JSON-only test_95_timeserver_fastforward_attack')
+      return
+
+    instance = secondary_instances[3]
+
+    # Since we're switching clients, we should switch the TUF override time to
+    # what this client thinks it should be.  (We're cheating by juggling
+    # multiple clients in one process for testing purposes, and the TUF clock
+    # override is a module-level variable in tuf.conf, so it's common to all
+    # clients in a process.)  Use the last trusted time for the instance.
+    tuf.conf.CLOCK_OVERRIDE = int(tuf.formats.datetime_to_unix_timestamp(
+        iso8601.parse_date(instance.all_valid_timeserver_times[-1])))
+
+
+
+    # CHECK INITIAL state before the attack:
+
+    # 1. There should be 2 trusted timeserver attestations initially.
+    self.assertEqual(2, len(instance.all_valid_timeserver_times))
+
+    # 2. We would check the client's override time, but that's stored in a
+    #    module-level variable for the whole process, and we're cheating and
+    #    running four clients in one process, so we just reset the clock
+    #    override a few lines ago.  It'll be overwritten when the next
+    #    timeserver attestation is verified.
+    # self.assertEqual(
+    #     int(tuf.formats.datetime_to_unix_timestamp(iso8601.parse_date(
+    #     '2016-11-02T21:06:05Z'))), tuf.conf.CLOCK_OVERRIDE)
+
+    # 3. The currently trusted Root metadata in the Secondary's updater for the
+    #    Director repository should list the same Timeserver keyid as the
+    #    Secondary has noted is the currently trusted Timeserver key's keyid.
+    #    This should be the 79c79... key we know was in the original root
+    #    metadata.
+    initially_trusted_timeserver_keyid = \
+        instance.timeserver_public_key['keyid']
+    self.assertEqual(
+        initially_trusted_timeserver_keyid,
+        instance.updater.repositories['director'].metadata['current']['root']
+        ['roles']['Timeserver']['keyids'][0])
+    self.assertEqual(
+        '79c796d7e87389d1ebad04edce49faef611d139ee41ea9fb1931732afbfaac2e',
+        initially_trusted_timeserver_keyid)
+
+
+
+    # BUILD the ATTACK.
+
+    # Simulate a request from the Secondary to the Timeserver containing the
+    # next nonce.  (This populates instance.last_nonce_sent.)
+    instance.set_nonce_as_sent()
+
+    # Construct a Timeserver Attestation that sets the clock to the future,
+    # near the end of the current UNIX epoch.  Include the nonce this
+    # Secondary thinks it sent the Timeserver.
+    # (This has no signatures list yet.)
+    fastforward_bare = {
+        'time': '2038-01-19T03:14:07Z',   # a.k.a. 2147483647 in UNIX time
+        'nonces': [instance.last_nonce_sent]
+    }
+
+    uptane.formats.TIMESERVER_ATTESTATION_SCHEMA.check_match(
+        fastforward_bare)
+
+    # Construct and check the signable version of the time attestation.
+    fastforward_signable = tuf.formats.make_signable(fastforward_bare)
+    uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.check_match(
+        fastforward_signable)
+
+    # Sign the fast-forward time attestation.
+    uptane.common.sign_signable(
+        fastforward_signable,
+        [self.key_timeserver_pri],
+        asn1_codec.DATATYPE_TIME_ATTESTATION,
+        metadata_format='json')
+
+
+
+    # PERFORM the ATTACK.
+
+    # Provide the Secondary with the fast-forward attestation.
+    # If the time_attestation is not deemed valid, an exception will be raised.
+    instance.update_time(fastforward_signable)
+
+
+    # Check results of the attack.
+
+    # 1. There should be 3 trusted timeserver attestations (including the
+    #    fast-forwarding attestation).
+    self.assertEqual(3, len(instance.all_valid_timeserver_times))
+
+    # 2. The current trusted time should be end-of-epoch from the
+    #    fast-forwarding attestation.
+    self.assertEqual(2147483647, tuf.conf.CLOCK_OVERRIDE)  # about epoch max
+
+
+    # CHECK ATTACK state: an update without the key rotated should now fail.
+    # (Fast-forward attack succeeds until Timeserver key is rotated.)
+
+    archive_with_old_timeserver_key = os.path.join(
+        SAMPLES_DIR, 'metadata_samples_long_expiry', 'update_to_one_ecu',
+        'full_metadata_archive.zip')
+
+
+    # TRY UPDATING during attack.  This should fail with a NoWorkingMirrorError.
+    # The individual errors for each mirror should be ExpiredMetadataErrors.
+    # Check to make sure all the individual errors spooled in the
+    # NoWorkingMirrorError are each an ExpiredMetadataError.
+    try:
+      instance.process_metadata(archive_with_old_timeserver_key)
+    except tuf.NoWorkingMirrorError as e:
+      for mirror in e.mirror_errors:
+        self.assertIsInstance(e.mirror_errors[mirror], tuf.ExpiredMetadataError)
+    else:
+      self.Fail(
+          'Expected update to fail during attack and provide a '
+          'NoWorkingMirrorError, which we would then check to confirm '
+          'consists of one ExpiredMetadataError for each mirror.')
+
+
+
+    # TODO: Consider generating more metadata to conduct more tests.....  Ugh.
+
+
+
+    # CHECK that the failed update had no strange side-effects by
+    # REPEATING all the initial-metadata-state and attacked-time-state checks
+    # above to make sure that the update that should have failed had no strange
+    # effects.
+
+    # 1. There should be 3 trusted timeserver attestations (including the
+    #    fast-forwarding attestation).
+    self.assertEqual(3, len(instance.all_valid_timeserver_times))
+
+    # 2. The current trusted time should be end-of-epoch from the
+    #    fast-forwarding attestation.
+    self.assertEqual(2147483647, tuf.conf.CLOCK_OVERRIDE)  # about epoch max
+
+    # 3. The currently trusted Root metadata in the Secondary's updater for the
+    #    Director repository should list the same Timeserver keyid as the
+    #    Secondary has noted is the currently trusted Timeserver key's keyid.
+    #    This should be the 79c79... key we know was in the original root
+    #    metadata.
+    initially_trusted_timeserver_keyid = \
+        instance.timeserver_public_key['keyid']
+    self.assertEqual(
+        initially_trusted_timeserver_keyid,
+        instance.updater.repositories['director'].metadata['current']['root']
+        ['roles']['Timeserver']['keyids'][0])
+    self.assertEqual(
+        '79c796d7e87389d1ebad04edce49faef611d139ee41ea9fb1931732afbfaac2e',
+        initially_trusted_timeserver_keyid)
+
+
+
+    # RESOLVE the ATTACK by providing the Secondary with metadata in which the
+    # timeserver key was rotated, which should allow the Secondary to update
+    # again.
+    # Provide a new root file with the timeserver key rotated.  Update and
+    # confirm that the update succeeds.
+    archive_with_rotated_key = os.path.join(
+        SAMPLES_DIR, 'metadata_samples_long_expiry', 'timeserver_key_rotated',
+        'full_metadata_archive.zip')
+
+    # Update to the new metadata with the new Timeserver key.
+    instance.process_metadata(archive_with_rotated_key)
+
+    now_trusted_timeserver_keyid = \
+        instance.timeserver_public_key['keyid']
+
+
+    # CHECK RESULTING state:
+
+    # 1. There should be zero trusted timeserver attestations immediately after
+    #    rotation.
+    self.assertEqual(0, len(instance.all_valid_timeserver_attestations))
+
+    # 2. The trusted time and the TUF clock override should be 0, epoch start.
+    self.assertEqual(
+        ['1970-01-01T00:00:00Z'], instance.all_valid_timeserver_times)
+    self.assertEqual(0, tuf.conf.CLOCK_OVERRIDE)
+
+    # 3. The currently trusted Root metadata in the Secondary's updater for the
+    #    Director repository should list the same Timeserver keyid as the
+    #    Secondary has noted is the currently trusted Timeserver key's keyid.
+    #    This should be the da9c6... key we know is in the sample rotated
+    #    metadata.
+    self.assertEqual(
+        now_trusted_timeserver_keyid,
+        instance.updater.repositories['director'].metadata['current']['root']
+        ['roles']['Timeserver']['keyids'][0])
+    self.assertEqual(
+        'da9c65c96c5c4072f6984f7aa81216d776aca6664d49cb4dfafbc7119320d9cc',
+        now_trusted_timeserver_keyid)
+
+    # For good measure, to avoid stupid mistakes in future test code changes.
+    # Make sure the key changed.
+    self.assertNotEqual(
+        initially_trusted_timeserver_keyid, now_trusted_timeserver_keyid)
+
+
+
+    # TODO: Try a normal update to provide an additional test that the attack
+    #       has been fully resolved?
 
 
 
