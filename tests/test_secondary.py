@@ -981,20 +981,28 @@ class TestSecondary(unittest.TestCase):
         'full_metadata_archive.zip')
 
 
-    # TRY UPDATING during attack.  This should fail with a NoWorkingMirrorError.
-    # The individual errors for each mirror should be ExpiredMetadataErrors.
-    # Check to make sure all the individual errors spooled in the
-    # NoWorkingMirrorError are each an ExpiredMetadataError.
-    try:
+    # TRY UPDATING during attack.  This should fail with an
+    # ExpiredMetadataError, which will occur when we update the Root metadata
+    # but find it to be expired and so refuse to continue and update the other
+    # metadata.
+    with self.assertRaises(tuf.ExpiredMetadataError):
       instance.process_metadata(archive_with_old_timeserver_key)
-    except tuf.NoWorkingMirrorError as e:
-      for mirror in e.mirror_errors:
-        self.assertIsInstance(e.mirror_errors[mirror], tuf.ExpiredMetadataError)
-    else:
-      self.Fail(
-          'Expected update to fail during attack and provide a '
-          'NoWorkingMirrorError, which we would then check to confirm '
-          'consists of one ExpiredMetadataError for each mirror.')
+
+    # OLD, NOW WRONG:
+    # TRY UPDATING during attack.  This should fail with a NoWorkingMirrorError
+    # # The individual errors for each mirror should be ExpiredMetadataErrors.
+    # # Check to make sure all the individual errors spooled in the
+    # # NoWorkingMirrorError are each an ExpiredMetadataError.
+    # try:
+    #   instance.process_metadata(archive_with_old_timeserver_key)
+    # except tuf.NoWorkingMirrorError as e:
+    #   for mirror in e.mirror_errors:
+    #     self.assertIsInstance(e.mirror_errors[mirror], tuf.ExpiredMetadataError)
+    # else:
+    #   self.Fail(
+    #       'Expected update to fail during attack and provide a '
+    #       'NoWorkingMirrorError, which we would then check to confirm '
+    #       'consists of one ExpiredMetadataError for each mirror.')
 
 
 
@@ -1082,8 +1090,7 @@ class TestSecondary(unittest.TestCase):
         initially_trusted_timeserver_keyid, now_trusted_timeserver_keyid)
 
 
-
-    # TODO: Try a normal update to provide an additional test that the attack
+    # TODO: Try another update to provide an additional test that the attack
     #       has been fully resolved?
 
 
