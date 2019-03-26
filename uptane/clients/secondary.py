@@ -537,7 +537,7 @@ class Secondary(object):
         #       occur at a lower level, in every root chain link step.
         #       This will do for now, but fix the corner case by moving this
         #       check.
-        self.update_timeserver_key_and_reset_clock(prior_timeserver_auth_info)
+        self.update_timeserver_key_and_reset_clock(new_timeserver_auth_info)
         # Since we failed to update and the Timeserver key changed, we try to
         # refresh again, since we may have failed because of a fast-forward
         # attack.
