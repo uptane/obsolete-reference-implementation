@@ -483,6 +483,13 @@ class Secondary(object):
     # TODO: This function is duplicated in primary.py and secondary.py. It must
     #       be moved to a general client.py as part of a fix to issue #14
     #       (github.com/uptane/uptane/issues/14).
+
+    This can raise TUF update exceptions like
+      - tuf.ExpiredMetadataError:
+          if after attempts to update the Root metadata succeeded or failed,
+          whatever currently trusted Root metadata we ended up with was expired.
+      - tuf.NoWorkingMirrorError:
+          if we could not obtain and verify all necessary metadata
     """
 
     # In order to provide Timeserver fast-forward attack protection, we do more
@@ -504,8 +511,10 @@ class Secondary(object):
     prior_timeserver_auth_info = self.updater.get_metadata(
         self.director_repo_name, 'current')['root']['roles']['Timeserver']
 
+    # Refresh the Director first.  If the Director refresh fails, we check to
+    # see if the Timeserver key has been rotated.
     try:
-      self.updater.refresh()
+      self.updater.refresh(repo_name=self.director_repo_name)
 
     except (tuf.NoWorkingMirrorError, tuf.ExpiredMetadataError):
       # TODO: <~> In the except line above, see if it's sufficient to only
@@ -554,6 +563,15 @@ class Secondary(object):
 
       if prior_timeserver_auth_info != new_timeserver_auth_info:
         self.update_timeserver_key_and_reset_clock(new_timeserver_auth_info)
+
+
+    # Now that we've dealt with the Director repository, deal with any and all
+    # other repositories, presumably Image Repositories.
+    for repository_name in self.updater.repositories:
+      if repository_name == self.director_repo_name:
+        continue
+
+      self.updater.refresh(repo_name=repository_name)
 
 
 
