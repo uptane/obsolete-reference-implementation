@@ -1042,11 +1042,15 @@ class TestSecondary(unittest.TestCase):
         'full_metadata_archive.zip')
 
     # Update to the new metadata with the new Timeserver key.
+    # This will involve an initial failure due to an apparently-expired set of
+    # metadata, but then when the newly trusted Root metadata is inspected, it
+    # will be found to have contained an updated Timeserver key, which will
+    # lead to tuf.conf.CLOCK_OVERRIDE being reset to 0, resolving the attack.
+    # An update attempt will then be repeated and succeed.
     instance.process_metadata(archive_with_rotated_key)
 
     now_trusted_timeserver_keyid = \
         instance.timeserver_public_key['keyid']
-
 
     # CHECK RESULTING state:
 
