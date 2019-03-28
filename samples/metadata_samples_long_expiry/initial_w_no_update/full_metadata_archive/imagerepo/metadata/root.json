@@ -1,9 +1,9 @@
 {
  "signatures": [
   {
-   "keyid": "fdba7eaa358fa5a8113a789f60c4a6ce29c4478d8d8eff3e27d1d77416696ab2",
+   "keyid": "94c836f0c45168f0a437eef0e487b910f58db4d462ae457b5730a4487130f290",
    "method": "ed25519",
-   "sig": "e47bc67e9d4433ad91f7e3b22b09752c735ba7f84a7812f9a6be086cdad70cbd8b93d68cea3ed94beb514aa099740046c352486dade1c60f68a3a24ce427e900"
+   "sig": "bdbbbfa6b75e98bbc5f04549f1b181e39cc7c8ad8bd86a41c061825e01ed5d2cf1a294cb45f7441cb15fe0302264a98c7813af699c12ba25ccee08878436c20b"
   }
  ],
  "signed": {
@@ -12,7 +12,7 @@
    "gz"
   ],
   "consistent_snapshot": false,
-  "expires": "2038-01-18T03:14:07Z",
+  "expires": "2037-09-28T12:46:18Z",
   "keys": {
    "6fcd9a928358ad8ca7e946325f57ec71d50cb5977a8d02c5ab0de6765fef040a": {
     "keyid_hash_algorithms": [
