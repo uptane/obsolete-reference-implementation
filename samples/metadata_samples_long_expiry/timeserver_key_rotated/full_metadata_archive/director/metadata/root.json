@@ -3,7 +3,7 @@
   {
    "keyid": "fdba7eaa358fa5a8113a789f60c4a6ce29c4478d8d8eff3e27d1d77416696ab2",
    "method": "ed25519",
-   "sig": "2ab82986eb585c970cd972cf647a7d98f0c8d44744f091d19821edf2dd746c3b56d0dc777b364d1b383503ff44bdbe33ce1443576117c816bb1c17b6f2240e00"
+   "sig": "b7812100db40cf8348cb7643786f5b4a77173f8586cca219baef5e6f4af4d459e3eb01b33636ecee51ec02c142d52be409b3ae1c372145a1341750f8ed4d730e"
   }
  ],
  "signed": {
@@ -22,16 +22,6 @@
     "keytype": "ed25519",
     "keyval": {
      "public": "99ef8790687ca252c4677a80a34e401efb7e17ccdf9b0fcb5f1bc3260c432cb9"
-    }
-   },
-   "79c796d7e87389d1ebad04edce49faef611d139ee41ea9fb1931732afbfaac2e": {
-    "keyid_hash_algorithms": [
-     "sha256",
-     "sha512"
-    ],
-    "keytype": "ed25519",
-    "keyval": {
-     "public": "5d7750b208dfc7ade8f6106b9c3fa25162d5a184f302161e429f19a79e66a908"
     }
    },
    "da9c65c96c5c4072f6984f7aa81216d776aca6664d49cb4dfafbc7119320d9cc": {
@@ -68,7 +58,7 @@
   "roles": {
    "Timeserver": {
     "keyids": [
-     "79c796d7e87389d1ebad04edce49faef611d139ee41ea9fb1931732afbfaac2e"
+     "da9c65c96c5c4072f6984f7aa81216d776aca6664d49cb4dfafbc7119320d9cc"
     ],
     "threshold": 1
    },
@@ -97,6 +87,6 @@
     "threshold": 1
    }
   },
-  "version": 1
+  "version": 2
  }
 }

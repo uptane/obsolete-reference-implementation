@@ -30,6 +30,7 @@ import random # for nonces
 import zipfile # to expand the metadata archive retrieved from the Primary
 import hashlib
 import iso8601
+import time
 
 import tuf.formats
 import tuf.keys
@@ -470,6 +471,171 @@ class Secondary(object):
 
 
 
+  def refresh_toplevel_metadata_from_repositories(self):
+    """
+    Refreshes client's metadata for the top-level roles:
+      root, targets, snapshot, and timestamp
+
+    See tuf.client.updater.Updater.refresh() for details, or the
+    Uptane Implementation Specification, section 8.3.2 (Full Verification of
+    Metadata).
+
+    # TODO: This function is duplicated in primary.py and secondary.py. It must
+    #       be moved to a general client.py as part of a fix to issue #14
+    #       (github.com/uptane/uptane/issues/14).
+
+    This can raise TUF update exceptions like
+      - tuf.ExpiredMetadataError:
+          if after attempts to update the Root metadata succeeded or failed,
+          whatever currently trusted Root metadata we ended up with was expired.
+      - tuf.NoWorkingMirrorError:
+          if we could not obtain and verify all necessary metadata
+    """
+
+    # In order to provide Timeserver fast-forward attack protection, we do more
+    # than simply calling updater.refresh().  Instead, we:
+    #  1. Make note of the Timeserver key listed in the root metadata currently
+    #     trusted by this client.
+    #  2. Attempt updater.refresh()
+    #  3. If refresh() failed (preferably only do this if it failed due to
+    #     expired metadata), check to see if the Timeserver key listed in the
+    #     root metadata NOW currently trusted is the same as before.  If it is
+    #     not, reset the clock and try to refresh() one more time.
+    #  4. Else if refresh() succeeded, check to see if the Timeserver key
+    #     listed in the root metadata NOW currently trusted is the same as
+    #     before.  If it is not, reset the clock.  Don't bother calling
+    #     refresh() again, though.
+
+
+    # Make note of the currently-trusted Timeserver key(s) and threshold.
+    prior_timeserver_auth_info = self.updater.get_metadata(
+        self.director_repo_name, 'current')['root']['roles']['Timeserver']
+
+    # Refresh the Director first.  If the Director refresh fails, we check to
+    # see if the Timeserver key has been rotated.
+    try:
+      self.updater.refresh(repo_name=self.director_repo_name)
+
+    except (tuf.NoWorkingMirrorError, tuf.ExpiredMetadataError):
+      # TODO: <~> In the except line above, see if it's sufficient to only
+      #           catch NoWorkingMirrorError here.  (Do we ever get
+      #           ExpiredMetadataError instead of NoWorkingMirrorError?
+      #           Should we comb through the component errors in the
+      #           NoWorkingMirrorErrors looking for ExpiredMetadataError?
+      #           If so, write a function that returns True/False given the
+      #           NoWorkingMirrorError, based on whether or not the failure was
+      #           caused by ExpiredMetadataErrors.  Consider generalizing to
+      #           return an error class if the NoWorkingMirrorError is caused
+      #           solely by one error class, and something else if the causes
+      #           are various.
+
+      new_timeserver_auth_info = self.updater.get_metadata(
+          self.director_repo_name, 'current')['root']['roles']['Timeserver']
+
+      if prior_timeserver_auth_info != new_timeserver_auth_info:
+        # TODO: Consider another, more invasive way to accomplish this (within
+        #       root chain verification, after switch to theupdateframework/tuf)
+        #       because there's a corner case here that isn't addressed:
+        #       Suppose in root version X you change the Timeserver key after a
+        #       fast-forward attack, then later in root version Y, change it
+        #       back because you decide the key was not exposed or something....
+        #       If a client goes from root version X-1 to root version Y within
+        #       this update cycle (it would root chain within the refresh
+        #       call), then we won't notice here that the key ever changed,
+        #       and we won't resolve the fast-forward attack.  Detection should
+        #       occur at a lower level, in every root chain link step.
+        #       This will do for now, but fix the corner case by moving this
+        #       check.
+        self.update_timeserver_key_and_reset_clock(new_timeserver_auth_info)
+        # Since we failed to update and the Timeserver key changed, we try to
+        # refresh again, since we may have failed because of a fast-forward
+        # attack.
+        # Note that the only difference between this except clause and the
+        # try-except-else's else clause below is that we refresh again here.
+        self.updater.refresh()
+
+      else:
+        raise
+
+    else:
+      new_timeserver_auth_info = self.updater.get_metadata(
+          self.director_repo_name, 'current')['root']['roles']['Timeserver']
+
+      if prior_timeserver_auth_info != new_timeserver_auth_info:
+        self.update_timeserver_key_and_reset_clock(new_timeserver_auth_info)
+
+
+    # Now that we've dealt with the Director repository, deal with any and all
+    # other repositories, presumably Image Repositories.
+    for repository_name in self.updater.repositories:
+      if repository_name == self.director_repo_name:
+        continue
+
+      self.updater.refresh(repo_name=repository_name)
+
+
+
+
+
+  def update_timeserver_key_and_reset_clock(self, new_auth_info):
+    '''
+    Update the expected timeserver key, reset the clock to epoch, and discard
+    old timeserver attestations.
+    This function assumes that the timeserver key has changed.  (i.e. Do not
+    call it if the key has not changed.))
+
+    The argument new_auth_info is in the keyids+threshold format expected in
+    the Root metadata, e.g.:
+      {'keyids': ['1234...'], 'threshold': 1}
+    This implementation supports only one Timeserver key.
+
+    # TODO: This function is duplicated in primary.py and secondary.py. It must
+    #       be moved to a general client.py as part of a fix to issue #14
+    #       (github.com/uptane/uptane/issues/14).
+    '''
+
+    # TODO: Separate and migrate away from ROLE_SCHEMA.  ROLE_SCHEMA is poorly
+    # named and used for too many distinct purposes.
+    tuf.formats.ROLE_SCHEMA.check_match(new_auth_info)
+
+    if len(new_auth_info['keyids']) != 1 or new_auth_info['threshold'] != 1:
+      raise uptane.Error(
+          'This implementation supports only a single key and threshold of '
+          '1 for the Timeserver.  The given authentication information drawn '
+          'from verified Root metadata does not match these constraints, '
+          'listing ' + str(len(new_auth_info['keyids'])) + ' keys and having '
+          'a threshold of ' + str(new_auth_info['threshold']) + '.')
+
+    new_keyid = new_auth_info['keyids'][0]
+
+    # We retrieve the key from tuf.keydb, using the keyid provided (obtained,
+    # by the caller of this function, from the 'roles' section of the currently
+    # trusted Director Root metadata.
+    # We could instead fetch the key information directly from the 'keys'
+    # section of the currently trusted Director Root metadata, looking it up
+    # using the keyid from the 'roles' section like this:
+    #    self.updater.get_metadata(self.director_repo_name, 'current')['root']['keys'][new_trusted_timeserver_keyid]
+    # BUT we will instead use tuf.keydb.get_key().  keydb is fed the key
+    # information when the metadata is verified. The difference is only that
+    # certain implementations of general-purpose key rotation (TUF's TAP 8)
+    # might result in these not matching, and the more trustworthy source being
+    # tuf.keydb.  (At the time of this writing, TAP 8 is not implemented here.)
+    # however, we do not fetch it directly, but request it from keydb, where
+    # that information ends up when the metadata is updated.  There is a
+    # possible edge case if general-purpose key rotation is implemented....
+    self.timeserver_public_key = tuf.keydb.get_key(
+        new_keyid, repository_name=self.director_repo_name)
+
+    # Reset the clock to epoch and discard previously-trusted time attestations.
+    tuf.conf.CLOCK_OVERRIDE = 0
+    self.all_valid_timeserver_times = [tuf.formats.unix_timestamp_to_datetime(
+        0).isoformat() + 'Z']
+    self.all_valid_timeserver_attestations = []
+
+
+
+
+
   def fully_validate_metadata(self):
     """
     Treats the unvalidated metadata obtained from the Primary (which the
@@ -504,7 +670,7 @@ class Secondary(object):
     """
 
     # Refresh the top-level metadata first (all repositories).
-    self.updater.refresh()
+    self.refresh_toplevel_metadata_from_repositories()
 
     validated_targets_for_this_ecu = []
 
