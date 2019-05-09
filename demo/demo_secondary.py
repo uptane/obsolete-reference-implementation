@@ -28,6 +28,7 @@ import demo
 import uptane # Import before TUF modules; may change tuf.conf values.
 import uptane.common # for canonical key construction and signing
 import uptane.clients.secondary as secondary
+import uptane.encoding.asn1_codec as asn1_codec
 from uptane import GREEN, RED, YELLOW, ENDCOLORS
 from demo.uptane_banners import *
 import tuf.keys
@@ -542,30 +543,43 @@ def generate_signed_ecu_manifest():
 
 def ATTACK_send_corrupt_manifest_to_primary():
   """
-  Attack: MITM w/o key modifies ECU manifest.
+  Attack: MITM w/o key modifies secondary ECU manifest.
   Modify the ECU manifest without updating the signature.
   """
   # Copy the most recent signed ecu manifest.
   import copy
   corrupt_signed_manifest = copy.copy(most_recent_signed_ecu_manifest)
 
-  corrupt_signed_manifest['signed']['attacks_detected'] += 'Everything is great, I PROMISE!'
+  # Convert signature to json and modify it
+  if tuf.conf.METADATA_FORMAT == 'der':
+    corrupt_signed_manifest = asn1_codec.convert_signed_der_to_dersigned_json(
+        corrupt_signed_manifest, asn1_codec.DATATYPE_ECU_MANIFEST)
+    corrupt_signed_manifest['signed']['attacks_detected'] += 'Everything is great, I PROMISE!'
+  else:
+    corrupt_signed_manifest['signed']['attacks_detected'] += 'Everything is great, I PROMISE!'
+
+  # Convert the signature back to the DER format
+  corrupt_signed_manifest_der = asn1_codec.convert_signed_metadata_to_der(
+      corrupt_signed_manifest, asn1_codec.DATATYPE_ECU_MANIFEST)
 
   print(YELLOW + 'ATTACK: Corrupted Manifest (bad signature):' + ENDCOLORS)
   print('   Modified the signed manifest as a MITM, simply changing a value:')
   print('   The attacks_detected field now reads "' + RED +
       repr(corrupt_signed_manifest['signed']['attacks_detected']) + ENDCOLORS)
 
+  # Submit the corrupt signature to the primary ecu
   try:
-    submit_ecu_manifest_to_primary(corrupt_signed_manifest)
+    submit_ecu_manifest_to_primary(corrupt_signed_manifest_der)
   except xmlrpc_client.Fault:
     print(GREEN + 'Primary REJECTED the fraudulent ECU manifest.' + ENDCOLORS)
   else:
     print(RED + 'Primary ACCEPTED the fraudulent ECU manifest!' + ENDCOLORS)
-  # (Next, on the Primary, one would generate the vehicle manifest and submit
+
+  # (Next, the Primary would generate the vehicle manifest and submit
   # that to the Director. The Director, in its window, should then indicate that
   # it has received this manifest and rejected it because the signature isn't
   # a valid signature over the changed ECU manifest.)
+
 
 
 
