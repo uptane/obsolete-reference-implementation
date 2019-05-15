@@ -353,6 +353,21 @@ def register_vehicle(vin, primary_ecu_serial=None, overwrite=True):
 
 
 
+def deregister_vehicle(vin):
+
+  if vin not in ecus_by_vin:
+    raise uptane.UnknownVehicle('The given VIN, ' + repr(vin) + ', is not '
+        'registered.')
+
+  buff = ecus_by_vin.pop(vin)
+  buff = vehicle_manifests.pop(vin)
+  buff = primary_ecus_by_vin.pop(vin)
+  buff = ecu_manifests.pop(vin)
+  buff = ecu_public_keys.pop(vin)
+
+
+
+
 
 def check_vin_registered(vin):
 
