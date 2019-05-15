@@ -463,6 +463,18 @@ class Director:
 
 
 
+  def remove_vehicle(self, vin):
+    """
+    For removing vehicles and all the ECU registered under that vehicle
+
+    """
+    inventory.deregister_vehicle(vin)
+
+    self.remove_director_repo_for_vehicle(vin)
+
+
+
+
 
   def create_director_repo_for_vehicle(self, vin):
     """
@@ -521,6 +533,26 @@ class Director:
     this_repo.timestamp.load_signing_key(self.key_dirtime_pri)
     this_repo.snapshot.load_signing_key(self.key_dirsnap_pri)
     this_repo.targets.load_signing_key(self.key_dirtarg_pri)
+
+
+
+
+
+  def remove_director_repo_for_vehicle(self, vin):
+    """
+    Remove the repository object and corresponding keys
+    for a given vehicle identifier.
+
+    """
+
+    uptane.formats.VIN_SCHEMA.check_match(vin)
+
+    # Remove the VIN repository for the Director repository
+    vin = uptane.common.scrub_filename(vin, self.director_repos_dir)
+    shutil.rmtree(vin)
+
+    # Remove the reference of the repository from the Director
+    buff = self.vehicle_repositories.pop(vin)
 
 
 
