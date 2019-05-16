@@ -384,3 +384,36 @@ class Client(object):
       raise tuf.BadSignatureError('Timeserver returned an invalid signature. '
                                   'Time is questionable, so not saved. If you see this persistently, '
                                   'it is possible that there is a Man in the Middle attack underway.')
+
+
+
+
+
+  def update_verified_time(self, timeserver_attestation):
+    """
+    This method extracts the time from provided timeserver_attestation,
+    which must  be verified first, and updates the time of the client.
+    This method must only be called if timeserver_attestation is correctly
+    signed by the expected Timeserver key and is verified by the Primary
+    or Secondary for the list of nounces.
+    The new time will be used by this client (via TUF) in place of
+    system time when checking metadata for expiration.
+    """
+    # Extract actual time from the timeserver's signed attestation.
+    new_timeserver_time = timeserver_attestation['signed']['time']
+
+    # Make sure the format is understandable to us before saving the
+    # attestation and time.  Convert to a UNIX timestamp.
+    new_timeserver_time_unix = int(tuf.formats.datetime_to_unix_timestamp(
+      iso8601.parse_date(new_timeserver_time)))
+    tuf.formats.UNIX_TIMESTAMP_SCHEMA.check_match(new_timeserver_time_unix)
+
+    # Save validated time.
+    self.all_valid_timeserver_times.append(new_timeserver_time)
+
+    # Save the attestation itself as well, to provide to Secondaries (who need
+    # not trust us).
+    self.all_valid_timeserver_attestations.append(timeserver_attestation)
+
+    # Set the client's clock.  This will be used instead of system time by TUF.
+    tuf.conf.CLOCK_OVERRIDE = new_timeserver_time_unix
