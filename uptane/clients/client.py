@@ -343,3 +343,44 @@ class Client(object):
           repr([targ['filepath'] for targ in directed_targets]))
 
     return directed_targets
+
+
+
+
+
+  def verify_timeserver_signature(self, timeserver_attestation):
+    """
+    The response from the Timeserver should then be provided to this function.
+    This function attempts to verify the given attestation,
+    if timeserver_attestation is correctly signed by the expected Timeserver
+
+    If the client is using ASN.1/DER metadata, then timeserver_attestation is
+    expected to be in that format, as a byte string.
+    Otherwise, we're using simple Python dictionaries and timeserver_attestation
+    conforms to uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.
+    """
+    # If we're using ASN.1/DER format, convert the attestation into something
+    # comprehensible (JSON-compatible dictionary) instead.
+    if tuf.conf.METADATA_FORMAT == 'der':
+      timeserver_attestation = asn1_codec.convert_signed_der_to_dersigned_json(
+        timeserver_attestation, DATATYPE_TIME_ATTESTATION)
+
+    # Check format.
+    uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.check_match(
+      timeserver_attestation)
+
+    # Assume there's only one signature. This assumption is made for simplicity
+    # in this reference implementation. If the Timeserver needs to sign with
+    # multiple keys for some reason, that can be accomodated.
+    assert len(timeserver_attestation['signatures']) == 1
+
+    verified = uptane.common.verify_signature_over_metadata(
+      self.timeserver_public_key,
+      timeserver_attestation['signatures'][0],
+      timeserver_attestation['signed'],
+      DATATYPE_TIME_ATTESTATION)
+
+    if not verified:
+      raise tuf.BadSignatureError('Timeserver returned an invalid signature. '
+                                  'Time is questionable, so not saved. If you see this persistently, '
+                                  'it is possible that there is a Man in the Middle attack underway.')
