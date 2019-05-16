@@ -38,6 +38,12 @@ from uptane.encoding.asn1_codec import DATATYPE_ECU_MANIFEST
 from uptane.encoding.asn1_codec import DATATYPE_VEHICLE_MANIFEST
 
 
+log = uptane.logging.getLogger('client')
+log.addHandler(uptane.file_handler)
+log.addHandler(uptane.console_handler)
+log.setLevel(uptane.logging.DEBUG)
+
+
 class Client(object):
 
   """
@@ -161,6 +167,7 @@ class Client(object):
     self.ecu_serial = ecu_serial
     self.full_client_dir = full_client_dir
     self.timeserver_public_key = timeserver_public_key
+    self.validated_targets = []
 
     # Create a TAP-4-compliant updater object. This will read pinned.json
     # and create single-repository updaters within it to handle connections to
@@ -302,4 +309,37 @@ class Client(object):
       validated_target_info[self.director_repo_name])
 
     return validated_target_info[self.director_repo_name]
-  
+
+
+
+
+
+  def get_target_list_from_director(self):
+    """
+    This method extracts the Director's instructions from the targets role in
+    the Director repository's metadata. These must still be validated against
+    the Image Repository in further calls.
+    """
+    # TODO: This will have to be changed (along with the functions that depend
+    # on this function's output) once multi-role delegations can yield multiple
+    # targetfile_info objects. (Currently, we only yield more than one at the
+    # multi-repository delegation level.)
+
+    # Refresh the top-level metadata first (all repositories).
+    log.debug('Refreshing top level metadata from all repositories.')
+
+    # Refresh the top-level metadata first (all repositories).
+    self.refresh_toplevel_metadata()
+
+    directed_targets = self.updater.targets_of_role(
+      rolename='targets', repo_name=self.director_repo_name)
+
+    if not directed_targets:
+      log.info('A correctly signed statement from the Director indicates that '
+          'this vehicle has NO updates to install.')
+    else:
+      log.info('A correctly signed statement from the Director indicates that '
+          'this vehicle has updates to install:' +
+          repr([targ['filepath'] for targ in directed_targets]))
+
+    return directed_targets
