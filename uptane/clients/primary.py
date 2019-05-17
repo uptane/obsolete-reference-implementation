@@ -974,32 +974,9 @@ class Primary(Client): # Inheriting from client class
     conforms to uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.
     """
 
-    # If we're using DER format, convert the attestation into something
-    # comprehensible instead.
-    if tuf.conf.METADATA_FORMAT == 'der':
-      timeserver_attestation = asn1_codec.convert_signed_der_to_dersigned_json(
-          timeserver_attestation, DATATYPE_TIME_ATTESTATION)
-
-    # Check format.
-    uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.check_match(
-        timeserver_attestation)
-
-
-    # Assume there's only one signature. This assumption is made for simplicity
-    # in this reference implementation. If the Timeserver needs to sign with
-    # multiple keys for some reason, that can be accomodated.
-    assert len(timeserver_attestation['signatures']) == 1
-
-    valid = uptane.common.verify_signature_over_metadata(
-        self.timeserver_public_key,
-        timeserver_attestation['signatures'][0],
-        timeserver_attestation['signed'],
-        DATATYPE_TIME_ATTESTATION)
-
-    if not valid:
-      raise tuf.BadSignatureError('Timeserver returned an invalid signature. '
-          'Time is questionable, so not saved. If you see this persistently, '
-          'it is possible that there is a Man in the Middle attack underway.')
+    # Verify the signature of the timeserver on the attestation. If not verified,
+    # it raises a BadSignatureError
+    self.verify_timeserver_signature(timeserver_attestation)
 
     for nonce in self.nonces_sent:
       if nonce not in timeserver_attestation['signed']['nonces']:
@@ -1013,25 +990,8 @@ class Primary(Client): # Inheriting from client class
             'persistently, it is possible that there is a Man in the Middle '
             'attack underway.')
 
-
-    # Extract actual time from the timeserver's signed attestation.
-    new_timeserver_time = timeserver_attestation['signed']['time']
-
-    # Make sure the format is understandable to us before saving the
-    # attestation and time.  Convert to a UNIX timestamp.
-    new_timeserver_time_unix = int(tuf.formats.datetime_to_unix_timestamp(
-        iso8601.parse_date(new_timeserver_time)))
-    tuf.formats.UNIX_TIMESTAMP_SCHEMA.check_match(new_timeserver_time_unix)
-
-    # Save validated time.
-    self.all_valid_timeserver_times.append(new_timeserver_time)
-
-    # Save the attestation itself as well, to provide to Secondaries (who need
-    # not trust us).
-    self.all_valid_timeserver_attestations.append(timeserver_attestation)
-
-    # Set the client's clock.  This will be used instead of system time by TUF.
-    tuf.conf.CLOCK_OVERRIDE = new_timeserver_time_unix
+    # Update the time of Primary with the time in attestation
+    self.update_verified_time(timeserver_attestation)
 
 
 
