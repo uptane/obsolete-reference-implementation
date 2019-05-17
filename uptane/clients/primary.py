@@ -318,25 +318,6 @@ class Primary(Client): # Inheriting from client class
 
 
 
-  def get_target_list_from_director(self):
-    """
-    This method extracts the Director's instructions from the targets role in
-    the Director repository's metadata. These must still be validated against
-    the Image Repository in further calls.
-    """
-    # TODO: This will have to be changed (along with the functions that depend
-    # on this function's output) once multi-role delegations can yield multiple
-    # targetfile_info objects. (Currently, we only yield more than one at the
-    # multi-repository delegation level.)
-    directed_targets = self.updater.targets_of_role(
-        rolename='targets', repo_name=self.director_repo_name)
-
-    return directed_targets
-
-
-
-
-
   def primary_update_cycle(self):
     """
     Download fresh metadata and images for this vehicle, as instructed by the
