@@ -138,7 +138,7 @@ def clean_slate(
       director_repo_name=demo.DIRECTOR_REPO_NAME,
       vin=_vin,
       ecu_serial=_ecu_serial,
-      primary_key=ecu_key,
+      ecu_key=ecu_key,
       time=clock,
       timeserver_public_key=key_timeserver_pub)
 
@@ -381,7 +381,7 @@ def register_self_with_director():
   print('Registering Primary ECU Serial and Key with Director.')
   server.register_ecu_serial(
       primary_ecu.ecu_serial,
-      uptane.common.public_key_from_canonical(primary_ecu.primary_key),
+      uptane.common.public_key_from_canonical(primary_ecu.ecu_key),
       _vin, True)
   print(GREEN + 'Primary has been registered with the Director.' + ENDCOLORS)
 
