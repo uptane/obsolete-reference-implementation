@@ -362,22 +362,9 @@ class Primary(Client): # Inheriting from client class
           are deposited by TUF that does not have an extension that befits a
           file of type tuf.conf.METADATA_FORMAT.
     """
-    log.debug('Refreshing top level metadata from all repositories.')
-    self.refresh_toplevel_metadata()
 
-    # Get the list of targets the director expects us to download and update to.
-    # Note that at this line, this target info is not yet validated with the
-    # Image Repository: that is done a few lines down.
+    # Get list of targets from the Director
     directed_targets = self.get_target_list_from_director()
-
-    if not directed_targets:
-      log.info('A correctly signed statement from the Director indicates that '
-          'this vehicle has NO updates to install.')
-    else:
-      log.info('A correctly signed statement from the Director indicates that '
-          'this vehicle has updates to install:' +
-          repr([targ['filepath'] for targ in directed_targets]))
-
 
     log.debug('Retrieving validated image file metadata from Image and '
         'Director Repositories.')
