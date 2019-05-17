@@ -20,6 +20,8 @@ from __future__ import unicode_literals
 
 import uptane # Import before TUF modules; may change tuf.conf values.
 
+from client.py import Client
+
 import os # For paths and makedirs
 import shutil # For copyfile
 import random # for nonces
@@ -60,7 +62,7 @@ log.setLevel(uptane.logging.DEBUG)
 
 
 
-class Primary(object): # Consider inheriting from Secondary and refactoring.
+class Primary(Client): # Inheriting from client class
   """
   <Purpose>
     This class contains the necessary code to perform Uptane validation of
@@ -84,7 +86,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
       (In other implementations, the important point is that this should be
       unique.) The Director should be aware of this identifier.
 
-    self.primary_key
+    self.ecu_key
       The signing key for this Primary ECU. This key will be used to sign
       Vehicle Manifests that will then be sent to the Director). The Director
       should be aware of the corresponding public key, so that it can validate
@@ -227,7 +229,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     director_repo_name, # e.g. 'director'; value must appear in pinning file
     vin,              # 'vin11111'
     ecu_serial,       # 'ecu00000'
-    primary_key,
+    ecu_key,
     time,
     timeserver_public_key,
     my_secondaries=None):
@@ -246,7 +248,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
 
       ecu_serial            See class docstring above.
 
-      primary_key           See class docstring above.
+      ecu_key           See class docstring above.
 
       timeserver_public_key See class docstring above.
 
@@ -277,23 +279,17 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     uptane.formats.VIN_SCHEMA.check_match(vin)
     uptane.formats.ECU_SERIAL_SCHEMA.check_match(ecu_serial)
     tuf.formats.ANYKEY_SCHEMA.check_match(timeserver_public_key)
-    tuf.formats.ANYKEY_SCHEMA.check_match(primary_key)
-    # TODO: Should also check that primary_key is a private key, not a
+    tuf.formats.ANYKEY_SCHEMA.check_match(ecu_key)
+    # TODO: Should also check that ecu_key is a private key, not a
     # public key.
 
-    self.vin = vin
-    self.ecu_serial = ecu_serial
-    self.full_client_dir = full_client_dir
-    # TODO: Consider removing time from [time] here and starting with an empty
-    #       list, or setting time to 0 to start by default.
-    self.all_valid_timeserver_times = [time]
-    self.all_valid_timeserver_attestations = []
-    self.timeserver_public_key = timeserver_public_key
-    self.primary_key = primary_key
+    super().__init__(full_client_dir, director_repo_name, vin,
+                     ecu_serial, ecu_key, time, timeserver_public_key)
+
+
     self.my_secondaries = my_secondaries
     if self.my_secondaries is None:
       self.my_secondaries = [] # (because must not use mutable as default value)
-    self.director_repo_name = director_repo_name
 
     self.temp_full_metadata_archive_fname = os.path.join(
         full_client_dir, 'metadata', 'temp_full_metadata_archive.zip')
@@ -317,16 +313,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     # by ECU serial and with value being a list of manifests from that ECU, to
     # support the case in which multiple manifests have come from that ECU.
     self.ecu_manifests = {}
-
-
-    # Create a TUF-TAP-4-compliant updater object. This will read pinning.json
-    # and create single-repository updaters within it to handle connections to
-    # each repository.
-    self.updater = tuf.client.updater.Updater('updater')
-
-    if director_repo_name not in self.updater.pinned_metadata['repositories']:
-      raise uptane.Error('Given name for the Director repository is not a '
-          'known repository, according to the pinned metadata from pinned.json')
 
 
 
@@ -895,13 +881,13 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
       # Convert to DER and sign, replacing the Python dictionary.
       signable_vehicle_manifest = asn1_codec.convert_signed_metadata_to_der(
           signable_vehicle_manifest, DATATYPE_VEHICLE_MANIFEST,
-          private_key=self.primary_key, resign=True)
+          private_key=self.ecu_key, resign=True)
 
     else:
       # If we're not using ASN.1, sign the Python dictionary in a JSON encoding.
       uptane.common.sign_signable(
           signable_vehicle_manifest,
-          [self.primary_key],
+          [self.ecu_key],
           DATATYPE_VEHICLE_MANIFEST)
 
       uptane.formats.SIGNABLE_VEHICLE_VERSION_MANIFEST_SCHEMA.check_match(
