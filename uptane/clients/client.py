@@ -389,6 +389,9 @@ class Client(object):
                                   'Time is questionable, so not saved. If you see this persistently, '
                                   'it is possible that there is a Man in the Middle attack underway.')
 
+    # Return timeserver_attestation in JSON-compatible dictionary
+    return timeserver_attestation
+
 
 
 
