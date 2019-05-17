@@ -957,7 +957,7 @@ class Primary(Client): # Inheriting from client class
 
     # Verify the signature of the timeserver on the attestation. If not verified,
     # it raises a BadSignatureError
-    self.verify_timeserver_signature(timeserver_attestation)
+    timeserver_attestation = self.verify_timeserver_signature(timeserver_attestation)
 
     for nonce in self.nonces_sent:
       if nonce not in timeserver_attestation['signed']['nonces']:
