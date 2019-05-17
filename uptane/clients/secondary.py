@@ -24,6 +24,8 @@ from io import open # TODO: Determine if this should be here.
 
 import uptane # Import before TUF modules; may change tuf.conf values.
 
+from uptane.clients.client import Client
+
 import os # For paths and makedirs
 import shutil # For copyfile
 import random # for nonces
@@ -54,7 +56,7 @@ log.setLevel(uptane.logging.DEBUG)
 
 
 
-class Secondary(object):
+class Secondary(Client):
 
   """
   <Purpose>
@@ -240,13 +242,10 @@ class Secondary(object):
     if director_public_key is not None:
         tuf.formats.ANYKEY_SCHEMA.check_match(director_public_key)
 
-    self.director_repo_name = director_repo_name
-    self.ecu_key = ecu_key
-    self.vin = vin
-    self.ecu_serial = ecu_serial
-    self.full_client_dir = full_client_dir
+    super().__init__(full_client_dir, director_repo_name, vin,
+                     ecu_serial, ecu_key, time, timeserver_public_key)
+
     self.director_proxy = None
-    self.timeserver_public_key = timeserver_public_key
     self.director_public_key = director_public_key
     self.partial_verifying = partial_verifying
     self.firmware_fileinfo = firmware_fileinfo
@@ -262,16 +261,8 @@ class Secondary(object):
           'only the ')
 
 
-    # Create a TAP-4-compliant updater object. This will read pinned.json
-    # and create single-repository updaters within it to handle connections to
-    # each repository.
-    self.updater = tuf.client.updater.Updater('updater')
-
-    if director_repo_name not in self.updater.pinned_metadata['repositories']:
-      raise uptane.Error('Given name for the Director repository is not a '
-          'known repository, according to the pinned metadata from pinned.json')
-
     # We load the given time twice for simplicity in later code.
+    # TODO: Check if this is necessary.
     self.all_valid_timeserver_times = [time, time]
 
     self.last_nonce_sent = None
