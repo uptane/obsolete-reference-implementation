@@ -168,6 +168,10 @@ class Client(object):
     self.full_client_dir = full_client_dir
     self.timeserver_public_key = timeserver_public_key
     self.validated_targets = []
+    # TODO: Consider removing time from [time] here and starting with an empty
+    #       list, or setting time to 0 to start by default.
+    self.all_valid_timeserver_times = [time]
+    self.all_valid_timeserver_attestations = []
 
     # Create a TAP-4-compliant updater object. This will read pinned.json
     # and create single-repository updaters within it to handle connections to
