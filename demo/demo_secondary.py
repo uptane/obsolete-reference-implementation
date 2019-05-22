@@ -335,19 +335,15 @@ def update_cycle():
   #  print(GREEN + 'Official time has been updated successfully.' + ENDCOLORS)
 
   # Dump the archive file to disk.
-  if secondary_ecu.partial_verifying:
-    metadata_fname = os.path.join(
-        secondary_ecu.full_client_dir, 'directed_targets.' + tuf.conf.METADATA_FORMAT)
-  else:
-    metadata_fname = os.path.join(
-        secondary_ecu.full_client_dir, 'metadata_archive.zip')
+  archive_fname = os.path.join(
+      secondary_ecu.full_client_dir, 'metadata_archive.zip')
 
-  with open(metadata_fname, 'wb') as fobj:
+  with open(archive_fname, 'wb') as fobj:
     fobj.write(metadata_from_primary.data)
 
   # Now tell the Secondary reference implementation code where the archive file
   # is and let it expand and validate the metadata.
-  secondary_ecu.process_metadata(metadata_fname)
+  secondary_ecu.process_metadata(archive_fname)
 
 
   # As part of the process_metadata call, the secondary will have saved
