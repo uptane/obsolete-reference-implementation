@@ -159,7 +159,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
       moved into place (renamed) after it has been fully written, to avoid
       race conditions.
 
-    self.distributable_partial_metadata_fname:
+    self.distributable_partial_metadata_archive_fname:
       The filename at which the Director's targets metadata file is stored after
       each update cycle, once it is safe to use. This is atomically moved into
       place (renamed) after it has been fully written, to avoid race conditions.
@@ -187,7 +187,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
       update_exists_for_ecu(ecu_serial)
       get_image_fname_for_ecu(ecu_serial)
       get_full_metadata_archive_fname()
-      get_partial_metadata_fname()
+      get_partial_metadata_archive_fname()
       register_new_secondary(ecu_serial)
 
     Private methods:
@@ -301,12 +301,10 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
         full_client_dir, 'metadata', 'full_metadata_archive.zip')
 
     # TODO: Some of these assumptions are unseemly. Reconsider.
-    self.temp_partial_metadata_fname = os.path.join(
-        full_client_dir, 'metadata', 'temp_director_targets.' +
-        tuf.conf.METADATA_FORMAT)
-    self.distributable_partial_metadata_fname = os.path.join(
-        full_client_dir, 'metadata', 'director_targets.' +
-        tuf.conf.METADATA_FORMAT)
+    self.temp_partial_metadata_archive_fname = os.path.join(
+        full_client_dir, 'metadata', 'temp_partial_metadata_archive.zip')
+    self.distributable_partial_metadata_archive_fname = os.path.join(
+        full_client_dir, 'metadata', 'partial_metadata_archive.zip')
 
     # Initializations not directly related to arguments.
     self.nonces_to_send = []
@@ -770,7 +768,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
 
 
 
-  def get_partial_metadata_fname(self):
+  def get_partial_metadata_archive_fname(self):
     """
     Returns the absolute-path filename of the Director's targets.json metadata
     file, necessary for performing partial validation of target files (as a
@@ -781,7 +779,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     file is completely written. If this Primary has never completed an update
     cycle, it will not exist yet.
     """
-    return self.distributable_partial_metadata_fname
+    return self.distributable_partial_metadata_archive_fname
 
 
 
@@ -1207,7 +1205,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
           a zip archive of all the metadata files, from all repositories,
           validated by this Primary, for use by Full Verification Secondaries.
 
-      - self.distributable_partial_metadata_fname
+      - self.distributable_partial_metadata_archive_fname
           the Director Targets role file alone, for use by Partial Verification
           Secondaries
 
@@ -1267,23 +1265,43 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
 
     # Copy the Director's targets file to a temp location for partial-verifying
     # Secondaries.
-    director_targets_file = os.path.join(
-        self.full_client_dir,
-        'metadata',
-        self.director_repo_name,
-        'current',
-        'targets.' + tuf.conf.METADATA_FORMAT)
-    if os.path.exists(self.temp_partial_metadata_fname):
-      os.remove(self.temp_partial_metadata_fname)
-    shutil.copyfile(director_targets_file, self.temp_partial_metadata_fname)
+    with zipfile.ZipFile(self.temp_partial_metadata_archive_fname, 'w') \
+        as archive:
 
+      # Need 'target' metadata from only director repo
+      repo_name = self.director_repo_name
+      # Construct path to "current" metadata directory for that repository in
+      # the client metadata directory, relative to Uptane working directory.
+      abs_repo_dir = os.path.join(metadata_base_dir, repo_name, 'current')
+
+      # Archive only 'targets' metadat file for partial verification
+      role_fname = 'targets.' + tuf.conf.METADATA_FORMAT
+      # Reconstruct file path relative to Uptane working directory.
+      role_abs_fname = os.path.join(abs_repo_dir, role_fname)
+
+      # Make sure it's the right type of file. Should be a file, not a
+      # directory. Symlinks are OK. Should end in an extension matching
+      # tuf.conf.METADATA_FORMAT (presumably .json or .der, depending on
+      # that setting).
+      if not os.path.isfile(role_abs_fname) or not role_abs_fname.endswith(
+          '.' + tuf.conf.METADATA_FORMAT):
+        # Consider special error type.
+        raise uptane.Error('Unexpected file type in a metadata '
+            'directory: ' + repr(role_abs_fname) + ' Expecting only ' +
+            tuf.conf.METADATA_FORMAT + 'files.')
+
+      # Write the file to the archive, adjusting the path in the archive so
+      # that when expanded, it resembles repository structure rather than
+      # a client directory structure.
+      archive.write(role_abs_fname,
+                    os.path.join(repo_dir, 'metadata', role_fname))
 
     # Now move both Full and Partial metadata files into place. For each file,
     # this happens atomically on POSIX-compliant systems and replaces any
     # existing file.
     os.rename(
-        self.temp_partial_metadata_fname,
-        self.distributable_partial_metadata_fname)
+        self.temp_partial_metadata_archive_fname,
+        self.distributable_partial_metadata_archive_fname)
     os.rename(
         self.temp_full_metadata_archive_fname,
         self.distributable_full_metadata_archive_fname)

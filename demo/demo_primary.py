@@ -494,7 +494,7 @@ def get_metadata_for_ecu(ecu_serial, force_partial_verification=False):
   fname = None
 
   if force_partial_verification:
-    fname = primary_ecu.get_partial_metadata_fname()
+    fname = primary_ecu.get_partial_metadata_archive_fname()
 
   else:
     # Note that in Python 2.7.4 and later, unzipping should prevent files from
