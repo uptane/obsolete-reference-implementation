@@ -63,6 +63,7 @@ _vin = 'democar'
 _ecu_serial = 'TCUdemocar'
 _primary_host = demo.PRIMARY_SERVER_HOST
 _primary_port = demo.PRIMARY_SERVER_DEFAULT_PORT
+_partial_verifying = False
 firmware_filename = 'secondary_firmware.txt'
 current_firmware_fileinfo = {}
 secondary_ecu = None
@@ -79,7 +80,8 @@ def clean_slate(
     vin=_vin,
     ecu_serial=_ecu_serial,
     primary_host=None,
-    primary_port=None):
+    primary_port=None,
+    partial_verifying=_partial_verifying):
   """
   """
 
@@ -88,12 +90,14 @@ def clean_slate(
   global _ecu_serial
   global _primary_host
   global _primary_port
+  global _partial_verifying
   global nonce
   global CLIENT_DIRECTORY
   global attacks_detected
 
   _vin = vin
   _ecu_serial = ecu_serial
+  _partial_verifying = partial_verifying
 
   if primary_host is not None:
     _primary_host = primary_host
@@ -103,6 +107,12 @@ def clean_slate(
 
   CLIENT_DIRECTORY = os.path.join(
       uptane.WORKING_DIR, CLIENT_DIRECTORY_PREFIX + demo.get_random_string(5))
+
+  # If secondary is partial verification then it would need director public key
+  if _partial_verifying:
+    key_director_pub = demo.import_public_key('director')
+  else:
+    key_director_pub = None
 
   # Load the public timeserver key.
   key_timeserver_pub = demo.import_public_key('timeserver')
@@ -154,7 +164,9 @@ def clean_slate(
       ecu_key=ecu_key,
       time=clock,
       firmware_fileinfo=factory_firmware_fileinfo,
-      timeserver_public_key=key_timeserver_pub)
+      timeserver_public_key=key_timeserver_pub,
+      director_public_key=key_director_pub,
+      partial_verifying=_partial_verifying)
 
 
 
@@ -302,7 +314,8 @@ def update_cycle():
 
   # Download the metadata from the Primary in the form of an archive. This
   # returns the binary data that we need to write to file.
-  metadata_archive = pserver.get_metadata(secondary_ecu.ecu_serial)
+  metadata_from_primary = pserver.get_metadata(
+      secondary_ecu.ecu_serial, secondary_ecu.partial_verifying)
 
   # Verify the time attestation and internalize the time (if verified, the time
   # will be used in place of system time to perform future metadata expiration
@@ -322,15 +335,19 @@ def update_cycle():
   #  print(GREEN + 'Official time has been updated successfully.' + ENDCOLORS)
 
   # Dump the archive file to disk.
-  archive_fname = os.path.join(
-      secondary_ecu.full_client_dir, 'metadata_archive.zip')
+  if secondary_ecu.partial_verifying:
+    metadata_fname = os.path.join(
+        secondary_ecu.full_client_dir, 'directed_targets.' + tuf.conf.METADATA_FORMAT)
+  else:
+    metadata_fname = os.path.join(
+        secondary_ecu.full_client_dir, 'metadata_archive.zip')
 
-  with open(archive_fname, 'wb') as fobj:
-    fobj.write(metadata_archive.data)
+  with open(metadata_fname, 'wb') as fobj:
+    fobj.write(metadata_from_primary.data)
 
   # Now tell the Secondary reference implementation code where the archive file
   # is and let it expand and validate the metadata.
-  secondary_ecu.process_metadata(archive_fname)
+  secondary_ecu.process_metadata(metadata_fname)
 
 
   # As part of the process_metadata call, the secondary will have saved
