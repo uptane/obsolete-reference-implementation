@@ -566,8 +566,8 @@ class Secondary(object):
             ENDCOLORS)
         continue
 
-
-    self.validated_targets_for_this_ecu = validated_targets_for_this_ecu
+    if validated_targets_for_this_ecu:
+      self.validated_targets_for_this_ecu = validated_targets_for_this_ecu
 
 
 
@@ -675,7 +675,8 @@ class Secondary(object):
 
       validated_targets_for_this_ecu.append(target)
 
-    self.validated_targets_for_this_ecu = validated_targets_for_this_ecu
+    if validated_targets_from_director:
+      self.validated_targets_for_this_ecu = validated_targets_for_this_ecu
 
 
 
