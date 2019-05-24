@@ -873,11 +873,11 @@ class TestPrimary(unittest.TestCase):
 
 
 
-  def test_62_get_partial_metadata_fname(self):
+  def test_62_get_partial_metadata_archive_fname(self):
 
     # TODO: More thorough tests.
 
-    fname = TestPrimary.instance.get_partial_metadata_fname()
+    fname = TestPrimary.instance.get_partial_metadata_archive_fname()
 
     self.assertTrue(fname)
 
