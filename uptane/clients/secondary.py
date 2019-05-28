@@ -391,30 +391,9 @@ class Secondary(Client):
 
     If verification is successful, switch to a new nonce for next time.
     """
-    # If we're using ASN.1/DER format, convert the attestation into something
-    # comprehensible (JSON-compatible dictionary) instead.
-    if tuf.conf.METADATA_FORMAT == 'der':
-      timeserver_attestation = asn1_codec.convert_signed_der_to_dersigned_json(
-          timeserver_attestation, DATATYPE_TIME_ATTESTATION)
-
-    # Check format.
-    uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.check_match(
-        timeserver_attestation)
-
-    # Assume there's only one signature.
-    assert len(timeserver_attestation['signatures']) == 1
-
-    verified = uptane.common.verify_signature_over_metadata(
-        self.timeserver_public_key,
-        timeserver_attestation['signatures'][0],
-        timeserver_attestation['signed'],
-        DATATYPE_TIME_ATTESTATION)
-
-    if not verified:
-      raise tuf.BadSignatureError('Timeserver returned an invalid signature. '
-          'Time is questionable, so not saved. If you see this persistently, '
-          'it is possible that there is a Man in the Middle attack underway.')
-
+    # Verify the signature of the timeserver on the attestation. If not verified,
+    # it raises a BadSignatureError
+    timeserver_attestation = self.verify_timeserver_signature(timeserver_attestation)
 
     # If the most recent nonce we sent is not in the timeserver attestation,
     # then we don't trust the timeserver attestation.
@@ -438,58 +417,9 @@ class Secondary(Client):
           'underway between the vehicle and the servers, or within the '
           'vehicle.')
 
-    # Extract actual time from the timeserver's signed attestation.
-    new_timeserver_time = timeserver_attestation['signed']['time']
+    # Update the time of Primary with the time in attestation
+    self.update_verified_time(timeserver_attestation)
 
-    # Make sure the format is understandable to us before saving the
-    # time.  Convert to a UNIX timestamp.
-    new_timeserver_time_unix = int(tuf.formats.datetime_to_unix_timestamp(
-        iso8601.parse_date(new_timeserver_time)))
-    tuf.formats.UNIX_TIMESTAMP_SCHEMA.check_match(new_timeserver_time_unix)
-
-    # Save verified time.
-    self.all_valid_timeserver_times.append(new_timeserver_time)
-
-    # Set the client's clock.  This will be used instead of system time by TUF.
-    tuf.conf.CLOCK_OVERRIDE = new_timeserver_time_unix
-
-    # Use a new nonce next time, since the nonce we were using has now been
-    # used to successfully verify a timeserver attestation.
-    self.change_nonce()
-
-
-
-
-
-  def refresh_toplevel_metadata(self):
-    """
-    Refreshes client's metadata for the top-level roles:
-      root, targets, snapshot, and timestamp
-
-    See tuf.client.updater.Updater.refresh() for details, or the
-    Uptane Standard, section 5.4.4.2 (Full Verification).
-
-    # TODO: This function is duplicated in primary.py and secondary.py. It must
-    #       be moved to a general client.py as part of a fix to issue #14
-    #       (github.com/uptane/uptane/issues/14).
-     This can raise TUF update exceptions like
-      - tuf.ExpiredMetadataError:
-          if after attempts to update the Root metadata succeeded or failed,
-          whatever currently trusted Root metadata we ended up with was expired.
-      - tuf.NoWorkingMirrorError:
-          if we could not obtain and verify all necessary metadata
-    """
-
-    # Refresh the Director first, per the Uptane Standard.
-    self.updater.refresh(repo_name=self.director_repo_name)
-
-    # Now that we've dealt with the Director repository, deal with any and all
-    # other repositories, presumably Image Repositories.
-    for repository_name in self.updater.repositories:
-      if repository_name == self.director_repo_name:
-        continue
-
-      self.updater.refresh(repo_name=repository_name)
 
 
 
@@ -528,16 +458,14 @@ class Secondary(Client):
 
     """
 
-    # Refresh the top-level metadata first (all repositories).
-    self.refresh_toplevel_metadata()
+    # Get list of targets from the Director
+    directed_targets = self.get_target_list_from_director()
 
     validated_targets_for_this_ecu = []
 
     # Comb through the Director's direct instructions, picking out only the
     # target(s) earmarked for this ECU (by ECU Serial)
-    for target in self.updater.targets_of_role(
-        rolename='targets', repo_name=self.director_repo_name):
-
+    for target in directed_targets:
       # Ignore target info not marked as being for this ECU.
       if 'custom' not in target['fileinfo'] or \
           'ecu_serial' not in target['fileinfo']['custom'] or \
@@ -557,35 +485,6 @@ class Secondary(Client):
 
 
     self.validated_targets_for_this_ecu = validated_targets_for_this_ecu
-
-
-
-
-
-  def get_validated_target_info(self, target_filepath):
-    """
-    COPIED EXACTLY, MINUS COMMENTS, from primary.py.
-    # TODO: Refactor later.
-    Throws tuf.UnknownTargetError if unable to find/validate a target.
-    """
-    tuf.formats.RELPATH_SCHEMA.check_match(target_filepath)
-
-    validated_target_info = self.updater.target(
-        target_filepath, multi_custom=True)
-
-    if self.director_repo_name not in validated_target_info:
-
-      raise tuf.Error('Unexpected behavior: did not receive target info from '
-          'Director repository (' + repr(self.director_repo_name) + ') for '
-          'a target (' + repr(target_filepath) + '). Is pinned.json configured '
-          'to allow some targets to validate without Director approval, or is'
-          'the wrong repository specified as the Director repository in the '
-          'initialization of this primary object?')
-
-    tuf.formats.TARGETFILE_SCHEMA.check_match(
-        validated_target_info[self.director_repo_name])
-
-    return validated_target_info[self.director_repo_name]
 
 
 
