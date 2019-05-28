@@ -90,8 +90,20 @@ TEST_INSTANCES = [
     {
         'client_dir': os.path.join(TEST_DATA_DIR, 'temp_partial_secondary0'),
         'partial_verifying': True,
-        'vin': 'vehicle_w_pv_bcu',
-        'ecu_serial': 'pv_bcu',
+        'vin': 'democar',
+        'ecu_serial': 'BCUdemocar',
+        'instance': None},
+    {
+        'client_dir': os.path.join(TEST_DATA_DIR, 'temp_partial_secondary1'),
+        'partial_verifying': True,
+        'vin': 'democar',
+        'ecu_serial': 'pv_00000',
+        'instance': None},
+    {
+        'client_dir': os.path.join(TEST_DATA_DIR, 'temp_partial_secondary2'),
+        'partial_verifying': True,
+        'vin': '000',
+        'ecu_serial': 'pv_00000',
         'instance': None}]
 
 # Set starting firmware fileinfo (that this ECU had coming from the factory)
