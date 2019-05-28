@@ -116,7 +116,7 @@ factory_firmware_fileinfo = {
             'sha256': '6b9f987226610bfed08b824c93bf8b2f59521fce9a2adef80c495f363c1c9c44'},
         'length': 37}}
 
-expected_updated_fileinfo = {
+fv_expected_updated_fileinfo = {
     'filepath': '/TCU1.1.txt',
     'fileinfo': {
         'custom': {'ecu_serial': 'TCUdemocar'},
@@ -124,6 +124,15 @@ expected_updated_fileinfo = {
             'sha512': '94d7419b8606103f363aa17feb875575a978df8e88038ea284ff88d90e534eaa7218040384b19992cc7866f5eca803e1654c9ccdf3b250d6198b3c4731216db4',
             'sha256': '56d7cd56a85e34e40d005e1f79c0e95d6937d5528ac0b301dbe68d57e03a5c21'},
         'length': 17}}
+
+pv_expected_updated_fileinfo = {
+    'filepath': "/BCU1.1.txt",
+    'fileinfo': {
+        "custom": {"ecu_serial": "BCUdemocar"},
+    "hashes": {
+            "sha256": "1eb6fa5c6bb606c5326d6ef0ff05f5fcefde4e50c7daea530978090778b38bf4",
+            "sha512": "9727058c2ba828fdd2fc5ae02f52c10e47404283f92df3539989e2ada3cf7e85a9772faed1bd0bad3fc2bd8f6e5d15b976b8e832dd46874be72b994bc57a62a0"},
+    "length": 18}}
 
 
 def destroy_temp_dir():
