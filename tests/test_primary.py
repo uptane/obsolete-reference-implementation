@@ -176,7 +176,7 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=5,  # INVALID
           ecu_serial=PRIMARY_ECU_SERIAL,
-          primary_key=TestPrimary.ecu_key,
+          ecu_key=TestPrimary.ecu_key,
           time=TestPrimary.initial_time,
           timeserver_public_key=TestPrimary.key_timeserver_pub,
           my_secondaries=[])
@@ -188,7 +188,7 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=VIN,
           ecu_serial=500, # INVALID
-          primary_key=TestPrimary.ecu_key,
+          ecu_key=TestPrimary.ecu_key,
           time=TestPrimary.initial_time,
           timeserver_public_key=TestPrimary.key_timeserver_pub,
           my_secondaries=[])
@@ -200,7 +200,7 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=VIN,
           ecu_serial=PRIMARY_ECU_SERIAL,
-          primary_key={''}, # INVALID
+          ecu_key={''}, # INVALID
           time=TestPrimary.initial_time,
           timeserver_public_key=TestPrimary.key_timeserver_pub,
           my_secondaries=[])
@@ -212,7 +212,7 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=VIN,
           ecu_serial=PRIMARY_ECU_SERIAL,
-          primary_key=TestPrimary.ecu_key,
+          ecu_key=TestPrimary.ecu_key,
           time='invalid because this is not a time', # INVALID
           timeserver_public_key=TestPrimary.key_timeserver_pub,
           my_secondaries=[])
@@ -224,7 +224,7 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=VIN,
           ecu_serial=PRIMARY_ECU_SERIAL,
-          primary_key=TestPrimary.ecu_key, time=TestPrimary.initial_time,
+          ecu_key=TestPrimary.ecu_key, time=TestPrimary.initial_time,
           timeserver_public_key=TestPrimary.initial_time, # INVALID
           my_secondaries=[])
 
@@ -235,7 +235,7 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=5, #INVALID
           vin=VIN,
           ecu_serial=PRIMARY_ECU_SERIAL,
-          primary_key=TestPrimary.ecu_key, time=TestPrimary.initial_time,
+          ecu_key=TestPrimary.ecu_key, time=TestPrimary.initial_time,
           timeserver_public_key = TestPrimary.key_timeserver_pub,
           my_secondaries=[])
 
@@ -246,7 +246,7 @@ class TestPrimary(unittest.TestCase):
           director_repo_name= "invalid", #INVALID
           vin=VIN,
           ecu_serial=PRIMARY_ECU_SERIAL,
-          primary_key=TestPrimary.ecu_key, time=TestPrimary.initial_time,
+          ecu_key=TestPrimary.ecu_key, time=TestPrimary.initial_time,
           timeserver_public_key = TestPrimary.key_timeserver_pub,
           my_secondaries=[])
 
@@ -261,7 +261,7 @@ class TestPrimary(unittest.TestCase):
         director_repo_name=demo.DIRECTOR_REPO_NAME,
         vin=VIN,
         ecu_serial=PRIMARY_ECU_SERIAL,
-        primary_key=TestPrimary.ecu_key,
+        ecu_key=TestPrimary.ecu_key,
         time=TestPrimary.initial_time,
         timeserver_public_key=TestPrimary.key_timeserver_pub)
 
@@ -272,7 +272,7 @@ class TestPrimary(unittest.TestCase):
     self.assertEqual([], TestPrimary.instance.nonces_sent)
     self.assertEqual(VIN, TestPrimary.instance.vin)
     self.assertEqual(PRIMARY_ECU_SERIAL, TestPrimary.instance.ecu_serial)
-    self.assertEqual(TestPrimary.ecu_key, TestPrimary.instance.primary_key)
+    self.assertEqual(TestPrimary.ecu_key, TestPrimary.instance.ecu_key)
     self.assertEqual(dict(), TestPrimary.instance.ecu_manifests)
     self.assertEqual(
         TestPrimary.instance.full_client_dir, TEMP_CLIENT_DIR)
