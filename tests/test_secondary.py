@@ -683,7 +683,11 @@ class TestSecondary(unittest.TestCase):
     # create_directory_structure_for_client() calls in setUpClass above, and
     # only the root metadata file.
     for instance_data in TEST_INSTANCES:
-      for repo in ['director', 'imagerepo']:
+      if instance_data['partial_verifying']:
+        repo_list = ['director']
+      else:
+        repo_list = ['director', 'imagerepo']
+      for repo in repo_list:
         self.assertEqual(
             ['root.' + tuf.conf.METADATA_FORMAT],
             sorted(os.listdir(os.path.join(
@@ -692,21 +696,25 @@ class TestSecondary(unittest.TestCase):
     # --- Set up this test
 
     # Location of the sample Primary-produced metadata archive
-    sample_archive_fname = os.path.join(
+    sample_fv_archive_fname = os.path.join(
         uptane.WORKING_DIR, 'samples', 'metadata_samples_long_expiry',
         'update_to_one_ecu', 'full_metadata_archive.zip')
+    sample_pv_archive_fname = os.path.join(
+      uptane.WORKING_DIR, 'samples', 'metadata_samples_long_expiry',
+      'update_to_one_ecu', 'partial_metadata_archive.zip')
 
-    assert os.path.exists(sample_archive_fname), 'Cannot test ' \
+
+    assert os.path.exists(sample_fv_archive_fname), 'Cannot test ' \
         'process_metadata; unable to find expected sample metadata archive' + \
-        ' at ' + repr(sample_archive_fname)
+        ' at ' + repr(sample_fv_archive_fname)
+    assert os.path.exists(sample_pv_archive_fname), 'Cannot test ' \
+        'process_metadata; unable to find expected sample metadata archive' + \
+        ' at ' + repr(sample_pv_archive_fname)
 
 
     # Continue set-up followed by the test, per client.
     # Only tests the full verification secondaries
     for instance_data in TEST_INSTANCES:
-
-      if instance_data['partial_verifying']:
-        continue
 
       client_dir = instance_data['client_dir']
       instance = instance_data['instance']
@@ -716,19 +724,22 @@ class TestSecondary(unittest.TestCase):
       # See comments in SetUpClass() method.
       tuf.conf.repository_directory = client_dir
 
-      # Location in the client directory to which we'll copy the archive.
-      archive_fname = os.path.join(client_dir, 'full_metadata_archive.zip')
-
-      # Copy the sample archive into place in the client directory.
-      shutil.copy(sample_archive_fname, archive_fname)
+      # Getting the location in the client directory to which we'll copy the archive
+      # and then copy the sample archive into place in the client directory.
+      if instance_data['partial_verifying']:
+        archive_fname = os.path.join(client_dir, 'partial_metadata_archive.zip')
+        shutil.copy(sample_pv_archive_fname, archive_fname)
+      else:
+        archive_fname = os.path.join(client_dir, 'full_metadata_archive.zip')
+        shutil.copy(sample_fv_archive_fname, archive_fname)
 
 
       # --- Perform the test
 
-      # Process this sample metadata.
+      # Process this sample metadata
 
-      if instance_data is TEST_INSTANCES[2]:
-        # Expect the update to fail for the third Secondary client.
+      if instance_data in [TEST_INSTANCES[2], TEST_INSTANCES[5]]:
+        # Expect the update to fail for the third and fifth Secondary client.
         with self.assertRaises(tuf.NoWorkingMirrorError):
           instance.process_metadata(archive_fname)
         continue
@@ -737,8 +748,14 @@ class TestSecondary(unittest.TestCase):
         instance.process_metadata(archive_fname)
 
       # Make sure the archive of unverified metadata was expanded
-      for repo in ['director', 'imagerepo']:
-        for role in ['root', 'snapshot', 'targets', 'timestamp']:
+      if instance_data['partial_verifying']:
+        repo_list = ['director']
+        roles_list = ['targets']
+      else:
+        repo_list = ['director', 'imagerepo']
+        roles_list = ['root', 'snapshot', 'targets', 'timestamp']
+      for repo in repo_list:
+        for role in roles_list:
           self.assertTrue(os.path.exists(client_dir + '/unverified/' + repo +
               '/metadata/' + role + '.' + tuf.conf.METADATA_FORMAT))
 
@@ -749,37 +766,56 @@ class TestSecondary(unittest.TestCase):
 
     # For clients 0 and 1, we expect root, snapshot, targets, and timestamp for
     # both director and image repo.
-    for instance_data in TEST_INSTANCES[0:2]:
-      for repo in ['director', 'imagerepo']:
-        self.assertEqual([
-            'root.' + tuf.conf.METADATA_FORMAT,
-            'snapshot.' + tuf.conf.METADATA_FORMAT,
-            'targets.' + tuf.conf.METADATA_FORMAT,
-            'timestamp.' + tuf.conf.METADATA_FORMAT],
+    # For clients 3 and 4, we expect root and targets for director repo
+    for instance_data in (TEST_INSTANCES[0:2] + TEST_INSTANCES[3:5]):
+      if instance_data['partial_verifying']:
+        repo_list = ['director']
+        # Both root and targets as there is root file needed to establish a root
+        # of trust while shipping the ECU
+        roles_list = ['root','targets']
+      else:
+        repo_list = ['director', 'imagerepo']
+        roles_list = ['root', 'snapshot', 'targets', 'timestamp']
+      roles_in_repo_directory = []
+
+      for role in roles_list:
+        roles_in_repo_directory.append(
+            role + '.' + tuf.conf.METADATA_FORMAT)
+
+      for repo in repo_list:
+        self.assertEqual(roles_in_repo_directory,
             sorted(os.listdir(os.path.join(instance_data['client_dir'],
             'metadata', repo, 'current'))))
 
-    # For client 2, we are certain that Director metadata will have failed to
+    # For client 2 and 5, we are certain that Director metadata will have failed to
     # update. Image Repository metadata may or may not have updated before the
     # Director repository update failure, so we don't check that. Client 2
     # started with root metadata for the Director repository, so that is all
     # we expect to find.
-    self.assertEqual(
-        ['root.' + tuf.conf.METADATA_FORMAT],
-        sorted(os.listdir(os.path.join(TEMP_CLIENT_DIRS[2], 'metadata',
-        'director', 'current'))))
+    for instance_data in [TEST_INSTANCES[2], TEST_INSTANCES[5]]:
+      self.assertEqual(
+          ['root.' + tuf.conf.METADATA_FORMAT],
+          sorted(os.listdir(os.path.join(instance_data['client_dir'],
+          'metadata', 'director', 'current'))))
 
 
     # Second: Check targets each Secondary client has been instructed to
     # install (and has in turn validated).
-    # Client 0 should have validated expected_updated_fileinfo.
+    # Client 0 should have validated fv_expected_updated_fileinfo.
     self.assertEqual(
-        expected_updated_fileinfo,
+        fv_expected_updated_fileinfo,
         TEST_INSTANCES[0]['instance'].validated_targets_for_this_ecu[0])
 
-    # Clients 1 and 2 should have no validated targets.
+    # Client 3 should have validated pv_expected_updated_fileinfo.
+    self.assertEqual(
+        pv_expected_updated_fileinfo,
+        TEST_INSTANCES[3]['instance'].validated_targets_for_this_ecu[0])
+
+    # Clients 1, 2, 4 and should have no validated targets.
     self.assertFalse(TEST_INSTANCES[1]['instance'].validated_targets_for_this_ecu)
     self.assertFalse(TEST_INSTANCES[2]['instance'].validated_targets_for_this_ecu)
+    self.assertFalse(TEST_INSTANCES[4]['instance'].validated_targets_for_this_ecu)
+    self.assertFalse(TEST_INSTANCES[5]['instance'].validated_targets_for_this_ecu)
 
 
     # Finally, test behavior if the file we indicate does not exist.
