@@ -611,14 +611,6 @@ class TestSecondary(unittest.TestCase):
     with self.assertRaises(uptane.BadTimeAttestation):
       instance.update_time(time_attestation__wrongnonce)
 
-    # Conduct one test with a different secondary instance:
-    # Expect that if a time attestation is submitted to be validated by a
-    # Secondary that hasn't ever sent a nonce, the validation function will
-    # reject the time attestation. (Because it doesn't matter, we'll use the
-    # same sensible time attestation previously generated in this test func.)
-    with self.assertRaises(uptane.BadTimeAttestation):
-      TEST_INSTANCES[1]['instance'].validate_time_attestation(time_attestation)
-
 
     # TODO: Consider other tests here.
 
