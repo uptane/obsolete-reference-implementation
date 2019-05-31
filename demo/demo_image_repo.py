@@ -131,13 +131,13 @@ def clean_slate(use_new_keys=False):
 
 
   # Add some starting image files, primarily for use with the web frontend.
-  add_target_to_imagerepo('demo/images/INFO1.0.txt', 'INFO1.0.txt')
-  add_target_to_imagerepo('demo/images/TCU1.0.txt', 'TCU1.0.txt')
-  add_target_to_imagerepo('demo/images/TCU1.1.txt', 'TCU1.1.txt')
-  add_target_to_imagerepo('demo/images/TCU1.2.txt', 'TCU1.2.txt')
-  add_target_to_imagerepo('demo/images/BCU1.0.txt', 'BCU1.0.txt')
-  add_target_to_imagerepo('demo/images/BCU1.1.txt', 'BCU1.1.txt')
-  add_target_to_imagerepo('demo/images/BCU1.2.txt', 'BCU1.2.txt')
+  add_target_to_imagerepo('demo/images/INFO1.0.txt', 'INFO1.0.txt', 'TYPE1', '0')
+  add_target_to_imagerepo('demo/images/TCU1.0.txt', 'TCU1.0.txt', 'TYPE2', '0')
+  add_target_to_imagerepo('demo/images/TCU1.1.txt', 'TCU1.1.txt', 'TYPE2', '1')
+  add_target_to_imagerepo('demo/images/TCU1.2.txt', 'TCU1.2.txt', 'TYPE2', '2')
+  add_target_to_imagerepo('demo/images/BCU1.0.txt', 'BCU1.0.txt', 'TYPE3', '0')
+  add_target_to_imagerepo('demo/images/BCU1.1.txt', 'BCU1.1.txt', 'TYPE3', '1')
+  add_target_to_imagerepo('demo/images/BCU1.2.txt', 'BCU1.2.txt', 'TYPE3', '2')
 
 
   print(LOG_PREFIX + 'Signing and hosting initial repository metadata')
@@ -172,7 +172,8 @@ def write_to_live():
 
 
 
-def add_target_to_imagerepo(target_fname, filepath_in_repo):
+def add_target_to_imagerepo(target_fname, filepath_in_repo,
+      hardware_id = None, release_counter = None):
   """
   For use in attacks and more specific demonstration.
 
@@ -191,6 +192,16 @@ def add_target_to_imagerepo(target_fname, filepath_in_repo):
       This is the name that will identify the file in the repository, and
       the filepath it will have relative to the root of the repository's
       targets directory.
+
+    hardware_id
+      A uniques idetifier for ECU classifying the ECU based on the hardware
+      type. This may be used to prevent installation of images with is not
+      supported by the hardware type.
+
+    release_counter
+      An index to track the version number of the firmware of the ECU.
+      This is used to prevent the roll-back attack by a compromised
+      director.
   """
   global repo
 
@@ -203,7 +214,12 @@ def add_target_to_imagerepo(target_fname, filepath_in_repo):
 
   shutil.copy(target_fname, destination_filepath)
 
-  repo.targets.add_target(destination_filepath)
+  custom = {
+    'hardware_id': hardware_id,
+    'release_counter': release_counter
+  }
+
+  repo.targets.add_target(destination_filepath, custom = custom)
 
 
 
