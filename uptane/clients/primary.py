@@ -479,6 +479,35 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
           'the wrong repository specified as the Director repository in the '
           'initialization of this primary object?')
 
+    directed_targets = validated_target_info[self.director_repo_name]
+
+    temp_release_counter = None
+    temp_hardware_id = None
+
+    # Check if the hardware ID and release_counter specified in metadata
+    # of all the repositories correspond to each other.
+
+    for repo_name in validated_target_info.keys():
+      repo_targets = validated_target_info[repo_name]
+      current_hardware_id = repo_targets['fileinfo']['custom']['hardware_id']
+      current_release_counter = repo_targets['fileinfo']['custom']['hardware_id']
+
+      if temp_release_counter is None:
+        temp_release_counter = current_release_counter
+      elif temp_release_counter != current_release_counter:
+        raise uptane.ImageRollBackAttempt('Bad value for the field \
+              hardware_ID in the that did not correspond the value in \
+              the other repos. Value did not match between the director \
+              and the other repos. The value of director target is {}'.format(
+              repr(directed_targets)))
+
+      if temp_hardware_id is None:
+        temp_hardware_id = current_hardware_id
+      elif temp_hardware_id != current_hardware_id:
+        raise uptane.HardwareIDMismatch('Bad value for the field \
+                      hardware_ID. It did not match to the value in \
+                      other repo')
+
     # Defensive coding: this should already have been checked.
     tuf.formats.TARGETFILE_SCHEMA.check_match(
         validated_target_info[self.director_repo_name])
