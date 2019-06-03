@@ -640,6 +640,17 @@ class Secondary(object):
 
 
 
+  def update_release_counter(self, new_release_counter):
+    """
+    To update the current release counter of the ECU with
+    the new release counter of the firmware
+    """
+
+    self.release_counter = new_release_counter
+
+
+
+
   def _expand_metadata_archive(self, metadata_archive_fname):
     """
     Given the filename of an archive of metadata files validated and zipped by
