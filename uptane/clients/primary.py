@@ -605,6 +605,46 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
               'File: ' + repr(target_filepath), sound=TADA)
           time.sleep(3)
 
+      except uptane.HardwareIDMismatch:
+        log.warning(RED + 'Director has instructed us to download a target (' +
+            target_filepath + ') that is not validated by the combination of '
+            'Image + Director Repositories. That update IS BEING SKIPPED. It '
+            'the hardware IDs do not match between image and director '
+            'repositories. Try again, but if this happens often, you may be '
+            'connecting to an untrustworthy Director, or there may be an '
+            'untrustworthy Image Repository, or the Director and Image '
+            'Repository may be out of sync.' + ENDCOLORS)
+
+        # If running the demo, display splash banner indicating the rejection.
+        # This clause should be pulled out of the reference implementation when
+        # possible.
+        if uptane.DEMO_MODE:  # pragma: no cover
+          print_banner(BANNER_DEFENDED, color=WHITE + DARK_BLUE_BG,
+                       text='The Director has instructed us to download a file that '
+                            'does not exactly match the Image Repository metadata. '
+                            'File: ' + repr(target_filepath), sound=TADA)
+          time.sleep(3)
+
+      except uptane.ImageRollBack:
+        log.warning(RED + 'Dorector has instructed us to download a target (' +
+            target_filepath + ') that is not validated by the combination of '
+            'Image + Director Repositories. That update IS BEING SKIPPED. It '
+            'the release counters do not match between image and director '
+            'repositories. Try again, but if this happens often, you may be '
+            'connecting to an untrustworthy Director, or there may be an '
+            'untrustworthy Image Repository, or the Director and Image '
+            'Repository may be out of sync.' + ENDCOLORS)
+
+        # If running the demo, display splash banner indicating the rejection.
+        # This clause should be pulled out of the reference implementation when
+        # possible.
+        if uptane.DEMO_MODE:  # pragma: no cover
+          print_banner(BANNER_DEFENDED, color=WHITE + DARK_BLUE_BG,
+                       text='The Director has instructed us to download a file that '
+                            'does not exactly match the Image Repository metadata. '
+                            'File: ' + repr(target_filepath), sound=TADA)
+          time.sleep(3)
+
 
     # # Grab a filepath from each of the dicts of target file infos. (Each dict
     # # corresponds to one file, and the filepaths in all the infos in that dict
