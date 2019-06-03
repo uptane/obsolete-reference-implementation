@@ -227,6 +227,8 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     director_repo_name, # e.g. 'director'; value must appear in pinning file
     vin,              # 'vin11111'
     ecu_serial,       # 'ecu00000'
+    hardware_id,
+    release_counter,
     primary_key,
     time,
     timeserver_public_key,
@@ -283,6 +285,8 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
 
     self.vin = vin
     self.ecu_serial = ecu_serial
+    self.hardware_id = hardware_id
+    self.release_counter = release_counter
     self.full_client_dir = full_client_dir
     # TODO: Consider removing time from [time] here and starting with an empty
     #       list, or setting time to 0 to start by default.
