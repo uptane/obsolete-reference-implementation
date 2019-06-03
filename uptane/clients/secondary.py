@@ -177,6 +177,8 @@ class Secondary(object):
     ecu_key,
     time,
     timeserver_public_key,
+    hardware_id = None,
+    release_counter = 0,
     firmware_fileinfo=None,
     director_public_key=None,
     partial_verifying=False):
@@ -244,6 +246,8 @@ class Secondary(object):
     self.ecu_key = ecu_key
     self.vin = vin
     self.ecu_serial = ecu_serial
+    self.hardware_id = hardware_id
+    self.release_counter = release_counter
     self.full_client_dir = full_client_dir
     self.director_proxy = None
     self.timeserver_public_key = timeserver_public_key
