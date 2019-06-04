@@ -242,7 +242,7 @@ class Secondary(Client):
     if director_public_key is not None:
         tuf.formats.ANYKEY_SCHEMA.check_match(director_public_key)
 
-    super().__init__(full_client_dir, director_repo_name, vin,
+    super(Secondary, self).__init__(full_client_dir, director_repo_name, vin,
                      ecu_serial, ecu_key, time, timeserver_public_key)
 
     self.director_proxy = None

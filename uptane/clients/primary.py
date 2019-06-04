@@ -283,7 +283,7 @@ class Primary(Client): # Inheriting from client class
     # TODO: Should also check that ecu_key is a private key, not a
     # public key.
 
-    super().__init__(full_client_dir, director_repo_name, vin,
+    super(Primary, self).__init__(full_client_dir, director_repo_name, vin,
                      ecu_serial, ecu_key, time, timeserver_public_key)
 
 
