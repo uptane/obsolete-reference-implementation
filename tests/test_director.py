@@ -234,6 +234,35 @@ class TestDirector(unittest.TestCase):
 
 
 
+  def test_04_remove_vehicle(self):
+
+    # Register a new vehicle, to remove it afterwards
+    vin = 'testcar'
+    TestDirector.instance.add_new_vehicle(vin)
+
+    # The vin should be present in the inventory db.
+    self.assertIn(vin, TestDirector.instance.vehicle_repositories)
+
+    # Remove the new vehicle
+    # This also removes the TUF repository of the vehicle containing
+    # the director metadata for that vehicle
+    TestDirector.instance.remove_vehicle(vin)
+
+    # Check resulting contents of the Director
+    self.assertNotIn(vin, TestDirector.instance.vehicle_repositories)
+    self.assertNotIn(vin, os.walk(TestDirector.instance.director_repos_dir))
+
+    # Check resulting contents of the inventorydb
+    self.assertNotIn(vin, inventory.ecus_by_vin)
+    self.assertNotIn(vin, inventory.primary_ecus_by_vin)
+    self.assertNotIn(vin, inventory.vehicle_manifests)
+    self.assertNotIn(vin, inventory.ecu_manifests)
+    self.assertNotIn(vin, inventory.ecu_public_keys)
+
+
+
+
+
 
   def test_05_register_ecu_serial(self):
 
