@@ -359,11 +359,14 @@ def deregister_vehicle(vin):
     raise uptane.UnknownVehicle('The given VIN, ' + repr(vin) + ', is not '
         'registered.')
 
+
   buff = ecus_by_vin.pop(vin)
   buff = vehicle_manifests.pop(vin)
   buff = primary_ecus_by_vin.pop(vin)
-  buff = ecu_manifests.pop(vin)
-  buff = ecu_public_keys.pop(vin)
+  if vin in ecu_manifests:
+    buff = ecu_manifests.pop(vin)
+  if vin in ecu_public_keys:
+    buff = ecu_public_keys.pop(vin)
 
 
 
