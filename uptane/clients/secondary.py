@@ -177,8 +177,8 @@ class Secondary(object):
     ecu_key,
     time,
     timeserver_public_key,
-    hardware_id = None,
-    release_counter = 0,
+    hardware_id,
+    release_counter,
     firmware_fileinfo=None,
     director_public_key=None,
     partial_verifying=False):

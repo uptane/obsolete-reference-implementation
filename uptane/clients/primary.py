@@ -625,7 +625,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
                             'File: ' + repr(target_filepath), sound=TADA)
           time.sleep(3)
 
-      except uptane.ImageRollBack:
+      except uptane.ImageRollBackAttempt:
         log.warning(RED + 'Dorector has instructed us to download a target (' +
             target_filepath + ') that is not validated by the combination of '
             'Image + Director Repositories. That update IS BEING SKIPPED. It '
