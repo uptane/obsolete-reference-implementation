@@ -378,6 +378,8 @@ class TestSecondary(unittest.TestCase):
           ecu_serial=ecu_serial,
           ecu_key=TestSecondary.secondary_ecu_key,
           time=TestSecondary.initial_time,
+          hardware_id= 'TYPE2',
+          release_counter = 0,
           timeserver_public_key=TestSecondary.key_timeserver_pub,
           firmware_fileinfo=factory_firmware_fileinfo,
           director_public_key=None,

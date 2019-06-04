@@ -65,6 +65,8 @@ SAMPLE_TARGETS = os.path.join(uptane.WORKING_DIR, 'demo', 'images')
 NONCE = 5
 VIN = 'democar'
 PRIMARY_ECU_SERIAL = '00000'
+PRIMARY_HARDWARE_IDENTIFIER  = ''
+PRIMARY_RELEASE_COUNTER = 0
 
 
 
@@ -176,6 +178,8 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=5,  # INVALID
           ecu_serial=PRIMARY_ECU_SERIAL,
+          hardware_id = PRIMARY_HARDWARE_IDENTIFIER,
+          release_counter = PRIMARY_RELEASE_COUNTER,
           primary_key=TestPrimary.ecu_key,
           time=TestPrimary.initial_time,
           timeserver_public_key=TestPrimary.key_timeserver_pub,
@@ -188,6 +192,8 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=VIN,
           ecu_serial=500, # INVALID
+          hardware_id=PRIMARY_HARDWARE_IDENTIFIER,
+          release_counter=PRIMARY_RELEASE_COUNTER,
           primary_key=TestPrimary.ecu_key,
           time=TestPrimary.initial_time,
           timeserver_public_key=TestPrimary.key_timeserver_pub,
@@ -200,6 +206,8 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=VIN,
           ecu_serial=PRIMARY_ECU_SERIAL,
+          hardware_id=PRIMARY_HARDWARE_IDENTIFIER,
+          release_counter=PRIMARY_RELEASE_COUNTER,
           primary_key={''}, # INVALID
           time=TestPrimary.initial_time,
           timeserver_public_key=TestPrimary.key_timeserver_pub,
@@ -212,6 +220,8 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=VIN,
           ecu_serial=PRIMARY_ECU_SERIAL,
+          hardware_id=PRIMARY_HARDWARE_IDENTIFIER,
+          release_counter=PRIMARY_RELEASE_COUNTER,
           primary_key=TestPrimary.ecu_key,
           time='invalid because this is not a time', # INVALID
           timeserver_public_key=TestPrimary.key_timeserver_pub,
@@ -224,6 +234,8 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=VIN,
           ecu_serial=PRIMARY_ECU_SERIAL,
+          hardware_id = PRIMARY_HARDWARE_IDENTIFIER,
+          release_counter = PRIMARY_RELEASE_COUNTER,
           primary_key=TestPrimary.ecu_key, time=TestPrimary.initial_time,
           timeserver_public_key=TestPrimary.initial_time, # INVALID
           my_secondaries=[])
@@ -235,6 +247,8 @@ class TestPrimary(unittest.TestCase):
           director_repo_name=5, #INVALID
           vin=VIN,
           ecu_serial=PRIMARY_ECU_SERIAL,
+          hardware_id = PRIMARY_HARDWARE_IDENTIFIER,
+          release_counter = PRIMARY_RELEASE_COUNTER,
           primary_key=TestPrimary.ecu_key, time=TestPrimary.initial_time,
           timeserver_public_key = TestPrimary.key_timeserver_pub,
           my_secondaries=[])
@@ -246,6 +260,8 @@ class TestPrimary(unittest.TestCase):
           director_repo_name= "invalid", #INVALID
           vin=VIN,
           ecu_serial=PRIMARY_ECU_SERIAL,
+          hardware_id=PRIMARY_HARDWARE_IDENTIFIER,
+          release_counter=PRIMARY_RELEASE_COUNTER,
           primary_key=TestPrimary.ecu_key, time=TestPrimary.initial_time,
           timeserver_public_key = TestPrimary.key_timeserver_pub,
           my_secondaries=[])
@@ -261,6 +277,8 @@ class TestPrimary(unittest.TestCase):
         director_repo_name=demo.DIRECTOR_REPO_NAME,
         vin=VIN,
         ecu_serial=PRIMARY_ECU_SERIAL,
+        hardware_id=PRIMARY_HARDWARE_IDENTIFIER,
+        release_counter=PRIMARY_RELEASE_COUNTER,
         primary_key=TestPrimary.ecu_key,
         time=TestPrimary.initial_time,
         timeserver_public_key=TestPrimary.key_timeserver_pub)
@@ -272,6 +290,8 @@ class TestPrimary(unittest.TestCase):
     self.assertEqual([], TestPrimary.instance.nonces_sent)
     self.assertEqual(VIN, TestPrimary.instance.vin)
     self.assertEqual(PRIMARY_ECU_SERIAL, TestPrimary.instance.ecu_serial)
+    self.assertEqual(PRIMARY_HARDWARE_IDENTIFIER, TestPrimary.instance.hardware_id)
+    self.assertEqual(PRIMARY_RELEASE_COUNTER, TestPrimary.instance.release_counter)
     self.assertEqual(TestPrimary.ecu_key, TestPrimary.instance.primary_key)
     self.assertEqual(dict(), TestPrimary.instance.ecu_manifests)
     self.assertEqual(
