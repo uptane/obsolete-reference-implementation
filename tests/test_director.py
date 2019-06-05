@@ -239,6 +239,7 @@ class TestDirector(unittest.TestCase):
     # Register a new vehicle, to remove it afterwards
     vin = 'testcar'
     TestDirector.instance.add_new_vehicle(vin)
+    os.chdir(uptane.WORKING_DIR)
 
     # The vin should be present in the inventory db.
     self.assertIn(vin, TestDirector.instance.vehicle_repositories)
