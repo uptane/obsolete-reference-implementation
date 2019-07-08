@@ -641,11 +641,14 @@ class Secondary(object):
     director_obj._ensure_not_expired(
         director_obj.metadata['current']['targets'], 'targets')
 
-    validated_targets_from_director = []
+
     # Do we have metadata for 'targets'?
     if 'targets' not in director_obj.metadata['current']:
       log.debug('No metadata for \'targtes\'. Unable to determine targets.')
       return
+
+    # To check if targets are specified by the director
+    is_validated_targets_from_director = False
 
     # Get the targets specified by the role itself.
     for filepath, fileinfo in six.iteritems(
@@ -653,19 +656,17 @@ class Secondary(object):
       new_target = {}
       new_target['filepath'] = filepath
       new_target['fileinfo'] = fileinfo
+      is_validated_targets_from_director = True
 
-      validated_targets_from_director.append(new_target)
-
-    for target in validated_targets_from_director:
-      # Ignore target info not marked as being for this ECU.
-      if 'custom' not in target['fileinfo'] or \
-        'ecu_serial' not in target['fileinfo']['custom'] or \
-        self.ecu_serial != target['fileinfo']['custom']['ecu_serial']:
+      if 'custom' not in new_target['fileinfo'] or \
+        'ecu_serial' not in new_target['fileinfo']['custom'] or \
+        self.ecu_serial != new_target['fileinfo']['custom']['ecu_serial']:
         continue
 
-      validated_targets_for_this_ecu.append(target)
+      validated_targets_for_this_ecu.append(new_target)
 
-    if validated_targets_from_director:
+    # Update the secondary if targets are specified by the director
+    if is_validated_targets_from_director:
       self.validated_targets_for_this_ecu = validated_targets_for_this_ecu
 
 
