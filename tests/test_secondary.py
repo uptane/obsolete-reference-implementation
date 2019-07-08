@@ -62,9 +62,9 @@ TEMP_CLIENT_DIRS = [
 # client directory,  whether or not the instance is partial-verifying, the
 # vehicle's ID, the Secondary's ID, and a reference to the instance.
 # Also note the nonce we'll use when validating sample time attestation data.
-# Changing the nonce or  would require producing new signed test data
-# from the Timeserver (in the case of nonce) or a Secondary (in the case of the
-# others).
+# Changing the nonce, vin and ecu_serial would require producing new signed
+# test data from the Timeserver (in the case of nonce) or a Secondary (in the
+# case of the others).
 
 nonce = 5
 
@@ -108,6 +108,8 @@ TEST_INSTANCES = [
 
 # Set starting firmware fileinfo (that this ECU had coming from the factory)
 # It will serve as the initial firmware state for the Secondary clients.
+# Here abbreviations pv and fv stands for partial verification and secondary
+# verification correspondingly.
 factory_firmware_fileinfo = {
     'filepath': '/secondary_firmware.txt',
     'fileinfo': {
@@ -762,8 +764,9 @@ class TestSecondary(unittest.TestCase):
     for instance_data in (TEST_INSTANCES[0:2] + TEST_INSTANCES[3:5]):
       if instance_data['partial_verifying']:
         repo_list = ['director']
-        # Both root and targets as there is root file needed to establish a root
-        # of trust while shipping the ECU
+        # Both root and targets metadata would be present as there would a root
+        # file present when the ECU is manufactured, which would be used to
+        # establish a root of trust when the ECU is used for the first time.
         roles_list = ['root','targets']
       else:
         repo_list = ['director', 'imagerepo']

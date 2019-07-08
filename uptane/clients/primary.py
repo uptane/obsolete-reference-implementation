@@ -1279,16 +1279,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
       # Reconstruct file path relative to Uptane working directory.
       role_abs_fname = os.path.join(abs_repo_dir, role_fname)
 
-      # Make sure it's the right type of file. Should be a file, not a
-      # directory. Symlinks are OK. Should end in an extension matching
-      # tuf.conf.METADATA_FORMAT (presumably .json or .der, depending on
-      # that setting).
-      if not os.path.isfile(role_abs_fname) or not role_abs_fname.endswith(
-          '.' + tuf.conf.METADATA_FORMAT):
-        # Consider special error type.
-        raise uptane.Error('Unexpected file type in a metadata '
-            'directory: ' + repr(role_abs_fname) + ' Expecting only ' +
-            tuf.conf.METADATA_FORMAT + 'files.')
 
       # Write the file to the archive, adjusting the path in the archive so
       # that when expanded, it resembles repository structure rather than

@@ -640,8 +640,9 @@ class Secondary(object):
 
     director_obj = self.updater.repositories['director']
 
-    # _update_metadata carries out the verification of metadata
-    # and then updates the metadata of the repository
+    # _update_metadata downloads, verifies, and 'installs'
+    # the director metadata and, if it successful, than
+    # the current and previous metadata stores are updated.
     director_obj._update_metadata('targets', upperbound_filelength)
 
     # TODO: If this Targets metadata file indicates that
@@ -650,16 +651,18 @@ class Secondary(object):
     #  to a minimal value.  It will be updated in the next cycle.
 
     # Is the metadata is not expired?
-    director_obj._ensure_not_expired(director_obj.metadata['current']['targets'], 'targets')
+    director_obj._ensure_not_expired(
+        director_obj.metadata['current']['targets'], 'targets')
 
     validated_targets_from_director = []
     # Do we have metadata for 'targets'?
     if 'targets' not in director_obj.metadata['current']:
       log.debug('No metadata for \'targtes\'. Unable to determine targets.')
-      validated_targets_from_director = []
+      return
 
     # Get the targets specified by the role itself.
-    for filepath, fileinfo in six.iteritems(director_obj.metadata['current']['targets']['targets']):
+    for filepath, fileinfo in six.iteritems(
+        director_obj.metadata['current']['targets']['targets']):
       new_target = {}
       new_target['filepath'] = filepath
       new_target['fileinfo'] = fileinfo
@@ -725,7 +728,7 @@ class Secondary(object):
     as long as it checks out as trustworthy.
 
     Full:
-      The given filename, metadata_fname, should point to an archive of all
+      The given filename, metadata_archive_fname, should point to an archive of all
       metadata necessary to perform full verification, such as is produced by
       primary.save_distributable_metadata_files().
       process_metadata expands this archive to a local directory where
@@ -738,11 +741,11 @@ class Secondary(object):
       underlying TUF code.
 
     Partial:
-      The given filename, metadata_fname, should point to a single metadata
+      The given filename, metadata_archive_fname, should point to a single metadata
       role file, the Director's Targets role. The signature on the Targets role
       file is validated against the Director's public key
       (self.director_public_key). If the signature is valid, the new Targets
-      role file is trusted, else it is discarded and we TUF raises a
+      role file is trusted, else it is discarded and TUF raises a
       tuf.BadSignatureError.
       (Additional protections come from the Primary
       having vetted the file for us using full verification, as long as the
