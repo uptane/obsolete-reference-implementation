@@ -91,10 +91,6 @@ class Client(object):
       been verified by update_time.
       Items are appended to the end.
 
-  Methods, as called: ("self" arguments excluded):
-
-    __init__(...)
-
   """
 
   def __init__(
