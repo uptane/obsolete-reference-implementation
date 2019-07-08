@@ -146,6 +146,8 @@ class Client(object):
     tuf.formats.ISO8601_DATETIME_SCHEMA.check_match(time)
     tuf.formats.ANYKEY_SCHEMA.check_match(timeserver_public_key)
     tuf.formats.ANYKEY_SCHEMA.check_match(ecu_key)
+    # TODO: Should also check that primary_key is a private key, not a
+    # public key.
 
     self.director_repo_name = director_repo_name
     self.ecu_key = ecu_key
