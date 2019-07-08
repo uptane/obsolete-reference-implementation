@@ -576,8 +576,7 @@ class Secondary(object):
   def partial_validate_metadata(self):
     """
     <Purpose>
-      Given the filename of a file containing the Director's Targets role
-      metadata, validates and processes that metadata, determining what firmware
+      This validates and processes the metadata, determining what firmware
       the Director has instructed this partial-verification Secondary ECU to
       install.
       The given metadata replaces this client's current Director metadata if
@@ -593,22 +592,10 @@ class Secondary(object):
       for this ECU (i.e. includes a target with field "ecu_serial" set to this
       ECU's serial number)
 
-
-    <Arguments>
-      director_targets_metadata_fname
-      Filename of the Director's Targets role metadata, in either JSON or
-      ASN.1/DER format.
-
-
     <Returns>
       None
 
-
     <Exceptions>
-      uptane.Error
-        if director_targets_metadata_fname does not specify a file that exists
-        or if tuf.conf.METADATA_FORMAT is somehow an unsupported format (i.e.
-        not 'json' or 'der')
       tuf.BadSignatureError
         if the signature over the Targets metadata is not a valid
         signature by the key corresponding to self.director_public_key, or if
