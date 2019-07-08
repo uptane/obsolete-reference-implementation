@@ -168,7 +168,7 @@ class Client(object):
 
     if director_repo_name not in self.updater.pinned_metadata['repositories']:
       raise uptane.Error('Given name for the Director repository is not a '
-                         'known repository, according to the pinned metadata from pinned.json')
+          'known repository, according to the pinned metadata from pinned.json')
 
 
 
@@ -289,16 +289,15 @@ class Client(object):
       # error earlier instead.
 
       raise uptane.Error('Unexpected behavior: did not receive target info from'
-                         ' Director repository (' + repr(self.director_repo_name) + ') for '
-                                                                                    'a target (' + repr(
-        target_filepath) + '). Is pinned.json configured '
-                           'to allow some targets to validate without Director approval, or is'
-                           'the wrong repository specified as the Director repository in the '
-                           'initialization of this primary object?')
+          ' Director repository (' + repr(self.director_repo_name) + ') for '
+          'a target (' + repr(target_filepath) + '). Is pinned.json configured '
+          'to allow some targets to validate without Director approval, or is'
+          'the wrong repository specified as the Director repository in the '
+          'initialization of this primary object?')
 
     # Defensive coding: this should already have been checked.
     tuf.formats.TARGETFILE_SCHEMA.check_match(
-      validated_target_info[self.director_repo_name])
+        validated_target_info[self.director_repo_name])
 
     return validated_target_info[self.director_repo_name]
 
@@ -324,7 +323,7 @@ class Client(object):
     self.refresh_toplevel_metadata()
 
     directed_targets = self.updater.targets_of_role(
-      rolename='targets', repo_name=self.director_repo_name)
+        rolename='targets', repo_name=self.director_repo_name)
 
     if not directed_targets:
       log.info('A correctly signed statement from the Director indicates that '
@@ -359,23 +358,23 @@ class Client(object):
 
     # Check format.
     uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.check_match(
-      timeserver_attestation)
+        timeserver_attestation)
 
     # Assume there's only one signature. This assumption is made for simplicity
     # in this reference implementation. If the Timeserver needs to sign with
-    # multiple keys for some reason, that can be accomodated.
+    # multiple keys for some reason, that can be accommodated.
     assert len(timeserver_attestation['signatures']) == 1
 
     verified = uptane.common.verify_signature_over_metadata(
-      self.timeserver_public_key,
-      timeserver_attestation['signatures'][0],
-      timeserver_attestation['signed'],
-      DATATYPE_TIME_ATTESTATION)
+        self.timeserver_public_key,
+        timeserver_attestation['signatures'][0],
+        timeserver_attestation['signed'],
+        DATATYPE_TIME_ATTESTATION)
 
     if not verified:
       raise tuf.BadSignatureError('Timeserver returned an invalid signature. '
-                                  'Time is questionable, so not saved. If you see this persistently, '
-                                  'it is possible that there is a Man in the Middle attack underway.')
+          'Time is questionable, so not saved. If you see this persistently, '
+          'it is possible that there is a Man in the Middle attack underway.')
 
     # Return timeserver_attestation in JSON-compatible dictionary
     return timeserver_attestation
@@ -400,7 +399,7 @@ class Client(object):
     # Make sure the format is understandable to us before saving the
     # attestation and time.  Convert to a UNIX timestamp.
     new_timeserver_time_unix = int(tuf.formats.datetime_to_unix_timestamp(
-      iso8601.parse_date(new_timeserver_time)))
+        iso8601.parse_date(new_timeserver_time)))
     tuf.formats.UNIX_TIMESTAMP_SCHEMA.check_match(new_timeserver_time_unix)
 
     # Save validated time.

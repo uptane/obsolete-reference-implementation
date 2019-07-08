@@ -62,7 +62,7 @@ log.setLevel(uptane.logging.DEBUG)
 
 
 
-class Primary(Client): # Inheriting from client class
+class Primary(Client):
   """
   <Purpose>
     This class contains the necessary code to perform Uptane validation of

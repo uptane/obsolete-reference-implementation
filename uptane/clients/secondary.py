@@ -417,7 +417,7 @@ class Secondary(Client):
           'underway between the vehicle and the servers, or within the '
           'vehicle.')
 
-    # Update the time of Primary with the time in attestation
+    # Update the time of Secondary with the time in attestation
     self.update_verified_time(timeserver_attestation)
 
 
