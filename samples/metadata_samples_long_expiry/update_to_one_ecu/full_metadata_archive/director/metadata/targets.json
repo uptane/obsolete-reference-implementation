@@ -3,7 +3,7 @@
   {
    "keyid": "630cf584f392430b2119a4395e39624e86f5e5c5374507a789be5cf35bf090d6",
    "method": "ed25519",
-   "sig": "e97a2e9d819555cc2c8af799cb2020857a0217ca5246d3365e3d881d9f53aa94ded9ef6c64caa8b606728b52451555c3a79500c266163b9a66933bde7012c302"
+   "sig": "f8ed79a8d122eb1eaf1132c980989480c36a4393ed1e6d63fcfa27623b996d395bc1db150692dd339a003a7338bdafacdae03204ebaeb9d64c10bb050715e003"
   }
  ],
  "signed": {
@@ -12,8 +12,18 @@
    "keys": {},
    "roles": []
   },
-  "expires": "2037-09-28T12:46:29Z",
+  "expires": "2038-01-18T03:14:15Z",
   "targets": {
+   "/BCU1.1.txt": {
+    "custom": {
+     "ecu_serial": "BCUdemocar"
+    },
+    "hashes": {
+     "sha256": "1eb6fa5c6bb606c5326d6ef0ff05f5fcefde4e50c7daea530978090778b38bf4",
+     "sha512": "9727058c2ba828fdd2fc5ae02f52c10e47404283f92df3539989e2ada3cf7e85a9772faed1bd0bad3fc2bd8f6e5d15b976b8e832dd46874be72b994bc57a62a0"
+    },
+    "length": 18
+   },
    "/TCU1.1.txt": {
     "custom": {
      "ecu_serial": "TCUdemocar"

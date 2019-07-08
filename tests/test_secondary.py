@@ -57,15 +57,54 @@ TEMP_CLIENT_DIRS = [
     os.path.join(TEST_DATA_DIR, 'temp_test_secondary1'),
     os.path.join(TEST_DATA_DIR, 'temp_test_secondary2')]
 
-# I'll initialize these in the __init__ test, and use this for the simple
-# non-damaging tests so as to avoid creating objects all over again.
-secondary_instances = [None, None, None]
 
-# Changing these values would require producing new signed test data from the
-# Timeserver (in the case of nonce) or a Secondary (in the case of the others).
+# For each Secondary instance we'll use in testing, a dictionary of the
+# client directory,  whether or not the instance is partial-verifying, the
+# vehicle's ID, the Secondary's ID, and a reference to the instance.
+# Also note the nonce we'll use when validating sample time attestation data.
+# Changing the nonce or  would require producing new signed test data
+# from the Timeserver (in the case of nonce) or a Secondary (in the case of the
+# others).
+
 nonce = 5
-vins = ['democar', 'democar', '000']
-ecu_serials = ['TCUdemocar', '00000', '00000']
+
+TEST_INSTANCES = [
+    {
+        'client_dir': os.path.join(TEST_DATA_DIR, 'temp_secondary0'),
+        'partial_verifying': False,
+        'vin': 'democar',
+        'ecu_serial': 'TCUdemocar',
+        'instance': None},
+    {
+        'client_dir': os.path.join(TEST_DATA_DIR, 'temp_secondary1'),
+        'partial_verifying': False,
+        'vin': 'democar',
+        'ecu_serial': '00000',
+        'instance': None},
+    {
+        'client_dir': os.path.join(TEST_DATA_DIR, 'temp_secondary2'),
+        'partial_verifying': False,
+        'vin': '000',
+        'ecu_serial': '00000',
+        'instance': None},
+    {
+        'client_dir': os.path.join(TEST_DATA_DIR, 'temp_partial_secondary0'),
+        'partial_verifying': True,
+        'vin': 'democar',
+        'ecu_serial': 'BCUdemocar',
+        'instance': None},
+    {
+        'client_dir': os.path.join(TEST_DATA_DIR, 'temp_partial_secondary1'),
+        'partial_verifying': True,
+        'vin': 'democar',
+        'ecu_serial': 'pv_00000',
+        'instance': None},
+    {
+        'client_dir': os.path.join(TEST_DATA_DIR, 'temp_partial_secondary2'),
+        'partial_verifying': True,
+        'vin': '000',
+        'ecu_serial': 'pv_00000',
+        'instance': None}]
 
 # Set starting firmware fileinfo (that this ECU had coming from the factory)
 # It will serve as the initial firmware state for the Secondary clients.
@@ -77,7 +116,7 @@ factory_firmware_fileinfo = {
             'sha256': '6b9f987226610bfed08b824c93bf8b2f59521fce9a2adef80c495f363c1c9c44'},
         'length': 37}}
 
-expected_updated_fileinfo = {
+fv_expected_updated_fileinfo = {
     'filepath': '/TCU1.1.txt',
     'fileinfo': {
         'custom': {'ecu_serial': 'TCUdemocar'},
@@ -86,12 +125,21 @@ expected_updated_fileinfo = {
             'sha256': '56d7cd56a85e34e40d005e1f79c0e95d6937d5528ac0b301dbe68d57e03a5c21'},
         'length': 17}}
 
+pv_expected_updated_fileinfo = {
+    'filepath': "/BCU1.1.txt",
+    'fileinfo': {
+        "custom": {"ecu_serial": "BCUdemocar"},
+    "hashes": {
+            "sha256": "1eb6fa5c6bb606c5326d6ef0ff05f5fcefde4e50c7daea530978090778b38bf4",
+            "sha512": "9727058c2ba828fdd2fc5ae02f52c10e47404283f92df3539989e2ada3cf7e85a9772faed1bd0bad3fc2bd8f6e5d15b976b8e832dd46874be72b994bc57a62a0"},
+    "length": 18}}
+
 
 def destroy_temp_dir():
   # Clean up anything that may currently exist in the temp test directories.
-  for client_dir in TEMP_CLIENT_DIRS:
-    if os.path.exists(client_dir):
-      shutil.rmtree(client_dir)
+  for instance_data in TEST_INSTANCES:
+    if os.path.exists(instance_data['client_dir']):
+      shutil.rmtree(instance_data['client_dir'])
 
 
 
@@ -152,9 +200,9 @@ class TestSecondary(unittest.TestCase):
     # We're going to cheat in this test module for the purpose of testing
     # and update tuf.conf.repository_directories before each Secondary is
     # created,  to refer to the client we're creating.
-    for client_dir in TEMP_CLIENT_DIRS:
+    for instance_data in TEST_INSTANCES:
       uptane.common.create_directory_structure_for_client(
-          client_dir,
+          instance_data['client_dir'],
           TEST_PINNING_FNAME,
           {'imagerepo': TEST_IMAGE_REPO_ROOT_FNAME,
           'director': TEST_DIRECTOR_ROOT_FNAME})
@@ -191,8 +239,8 @@ class TestSecondary(unittest.TestCase):
       secondary.Secondary(
           full_client_dir=42,
           director_repo_name=demo.DIRECTOR_REPO_NAME,
-          vin=vins[0],
-          ecu_serial=ecu_serials[0],
+          vin= TEST_INSTANCES[0]['vin'],
+          ecu_serial=TEST_INSTANCES[0]['ecu_serial'],
           ecu_key=TestSecondary.secondary_ecu_key,
           time=TestSecondary.initial_time,
           timeserver_public_key=TestSecondary.key_timeserver_pub,
@@ -208,10 +256,10 @@ class TestSecondary(unittest.TestCase):
     # Invalid director_repo_name
     with self.assertRaises(tuf.FormatError):
       secondary.Secondary(
-          full_client_dir=TEMP_CLIENT_DIRS[0],
+          full_client_dir=TEST_INSTANCES[0]['client_dir'],
           director_repo_name=42,
-          vin=vins[0],
-          ecu_serial=ecu_serials[0],
+          vin=TEST_INSTANCES[0]['vin'],
+          ecu_serial=TEST_INSTANCES[0]['ecu_serial'],
           ecu_key=TestSecondary.secondary_ecu_key,
           time=TestSecondary.initial_time,
           timeserver_public_key=TestSecondary.key_timeserver_pub,
@@ -222,10 +270,10 @@ class TestSecondary(unittest.TestCase):
     # Unknown director_repo_name
     with self.assertRaises(uptane.Error):
       secondary.Secondary(
-          full_client_dir=TEMP_CLIENT_DIRS[0],
+          full_client_dir=TEST_INSTANCES[0]['client_dir'],
           director_repo_name='string_that_is_not_a_known_repo_name',
-          vin=vins[0],
-          ecu_serial=ecu_serials[0],
+          vin=TEST_INSTANCES[0]['vin'],
+          ecu_serial=TEST_INSTANCES[0]['ecu_serial'],
           ecu_key=TestSecondary.secondary_ecu_key,
           time=TestSecondary.initial_time,
           timeserver_public_key=TestSecondary.key_timeserver_pub,
@@ -236,10 +284,10 @@ class TestSecondary(unittest.TestCase):
     # Invalid VIN:
     with self.assertRaises(tuf.FormatError):
       secondary.Secondary(
-          full_client_dir=TEMP_CLIENT_DIRS[0],
+          full_client_dir=TEST_INSTANCES[0]['client_dir'],
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=5,
-          ecu_serial=ecu_serials[0],
+          ecu_serial=TEST_INSTANCES[0]['ecu_serial'],
           ecu_key=TestSecondary.secondary_ecu_key,
           time=TestSecondary.initial_time,
           timeserver_public_key=TestSecondary.key_timeserver_pub,
@@ -250,9 +298,9 @@ class TestSecondary(unittest.TestCase):
     # Invalid ECU Serial
     with self.assertRaises(tuf.FormatError):
       secondary.Secondary(
-          full_client_dir=TEMP_CLIENT_DIRS[0],
+          full_client_dir=TEST_INSTANCES[0]['client_dir'],
           director_repo_name=demo.DIRECTOR_REPO_NAME,
-          vin=vins[0],
+          vin=TEST_INSTANCES[0]['vin'],
           ecu_serial=500,
           ecu_key=TestSecondary.secondary_ecu_key,
           time=TestSecondary.initial_time,
@@ -264,10 +312,10 @@ class TestSecondary(unittest.TestCase):
     # Invalid ECU Key
     with self.assertRaises(tuf.FormatError):
       secondary.Secondary(
-          full_client_dir=TEMP_CLIENT_DIRS[0],
+          full_client_dir=TEST_INSTANCES[0]['client_dir'],
           director_repo_name=demo.DIRECTOR_REPO_NAME,
-          vin=vins[0],
-          ecu_serial=ecu_serials[0],
+          vin=TEST_INSTANCES[0]['vin'],
+          ecu_serial=TEST_INSTANCES[0]['ecu_serial'],
           ecu_key={''},
           time=TestSecondary.initial_time,
           timeserver_public_key=TestSecondary.key_timeserver_pub,
@@ -278,10 +326,10 @@ class TestSecondary(unittest.TestCase):
     # Invalid initial time:
     with self.assertRaises(tuf.FormatError):
       secondary.Secondary(
-          full_client_dir=TEMP_CLIENT_DIRS[0],
+          full_client_dir=TEST_INSTANCES[0]['client_dir'],
           director_repo_name=demo.DIRECTOR_REPO_NAME,
-          vin=vins[0],
-          ecu_serial=ecu_serials[0],
+          vin=TEST_INSTANCES[0]['vin'],
+          ecu_serial=TEST_INSTANCES[0]['ecu_serial'],
           ecu_key=TestSecondary.secondary_ecu_key,
           time='potato',
           timeserver_public_key=TestSecondary.key_timeserver_pub,
@@ -292,10 +340,10 @@ class TestSecondary(unittest.TestCase):
     # Invalid director_public_key:
     with self.assertRaises(tuf.FormatError):
       secondary.Secondary(
-          full_client_dir=TEMP_CLIENT_DIRS[0],
+          full_client_dir=TEST_INSTANCES[0]['client_dir'],
           director_repo_name=demo.DIRECTOR_REPO_NAME,
-          vin=vins[0],
-          ecu_serial=ecu_serials[0],
+          vin=TEST_INSTANCES[0]['vin'],
+          ecu_serial=TEST_INSTANCES[0]['ecu_serial'],
           ecu_key=TestSecondary.secondary_ecu_key,
           time=TestSecondary.initial_time,
           timeserver_public_key=TestSecondary.key_timeserver_pub,
@@ -310,10 +358,10 @@ class TestSecondary(unittest.TestCase):
     # for full verification are determined based on the root metadata file.
     with self.assertRaises(uptane.Error):
       secondary.Secondary(
-          full_client_dir=TEMP_CLIENT_DIRS[0],
+          full_client_dir=TEST_INSTANCES[0]['client_dir'],
           director_repo_name=demo.DIRECTOR_REPO_NAME,
-          vin=vins[0],
-          ecu_serial=ecu_serials[0],
+          vin=TEST_INSTANCES[0]['vin'],
+          ecu_serial=TEST_INSTANCES[0]['ecu_serial'],
           ecu_key=TestSecondary.secondary_ecu_key,
           time=TestSecondary.initial_time,
           timeserver_public_key=TestSecondary.key_timeserver_pub,
@@ -322,10 +370,10 @@ class TestSecondary(unittest.TestCase):
           partial_verifying=False)
     with self.assertRaises(uptane.Error):
       secondary.Secondary(
-          full_client_dir=TEMP_CLIENT_DIRS[0],
+          full_client_dir=TEST_INSTANCES[0]['client_dir'],
           director_repo_name=demo.DIRECTOR_REPO_NAME,
-          vin=vins[0],
-          ecu_serial=ecu_serials[0],
+          vin=TEST_INSTANCES[0]['vin'],
+          ecu_serial=TEST_INSTANCES[0]['ecu_serial'],
           ecu_key=TestSecondary.secondary_ecu_key,
           time=TestSecondary.initial_time,
           timeserver_public_key=TestSecondary.key_timeserver_pub,
@@ -337,10 +385,10 @@ class TestSecondary(unittest.TestCase):
     # Invalid timeserver key
     with self.assertRaises(tuf.FormatError):
       secondary.Secondary(
-          full_client_dir=TEMP_CLIENT_DIRS[0],
+          full_client_dir=TEST_INSTANCES[0]['client_dir'],
           director_repo_name=demo.DIRECTOR_REPO_NAME,
-          vin=vins[0],
-          ecu_serial=ecu_serials[0],
+          vin=TEST_INSTANCES[0]['vin'],
+          ecu_serial=TEST_INSTANCES[0]['ecu_serial'],
           ecu_key=TestSecondary.secondary_ecu_key,
           time=TestSecondary.initial_time,
           timeserver_public_key=TestSecondary.initial_time, # INVALID
@@ -362,16 +410,23 @@ class TestSecondary(unittest.TestCase):
 
 
     # Initialize three clients and perform checks on each of them.
-    for i in range(0, len(TEMP_CLIENT_DIRS)):
-      client_dir = TEMP_CLIENT_DIRS[i]
-      ecu_serial = ecu_serials[i]
-      vin = vins[i]
+    for instance_data in TEST_INSTANCES:
+      client_dir = instance_data['client_dir']
+      ecu_serial = instance_data['ecu_serial']
+      vin = instance_data['vin']
+
+      # Partial verification Secondaries need to be initialized with the
+      # Director's public key.
+      if instance_data['partial_verifying']:
+        director_public_key_for_ecu = self.key_directortargets_pub
+      else:
+        director_public_key_for_ecu = None
 
       # Try initializing each of three secondaries, expecting these calls to
-      # work. Save the instances for future tests as elements in a module list
-      # variable(secondary_instances) to save time and code.
+      # work. Save the instances for future tests as elements in a module
+      # variable (TEST_INSTANCES) to save time and code.
       tuf.conf.repository_directory = client_dir
-      secondary_instances[i] = secondary.Secondary(
+      instance_data['instance'] = secondary.Secondary(
           full_client_dir=client_dir,
           director_repo_name=demo.DIRECTOR_REPO_NAME,
           vin=vin,
@@ -380,11 +435,9 @@ class TestSecondary(unittest.TestCase):
           time=TestSecondary.initial_time,
           timeserver_public_key=TestSecondary.key_timeserver_pub,
           firmware_fileinfo=factory_firmware_fileinfo,
-          director_public_key=None,
-          partial_verifying=False)
-
-      instance = secondary_instances[i]
-
+          director_public_key=director_public_key_for_ecu,
+          partial_verifying=instance_data['partial_verifying'])
+      instance = instance_data['instance']
       # Check the fields initialized in the instance to make sure they're correct.
 
       # Fields initialized from parameters
@@ -399,11 +452,9 @@ class TestSecondary(unittest.TestCase):
           TestSecondary.initial_time, instance.all_valid_timeserver_times[1])
       self.assertEqual(
           TestSecondary.key_timeserver_pub, instance.timeserver_public_key)
-      self.assertTrue(None is instance.director_public_key)
-      self.assertFalse(instance.partial_verifying)
 
       # Fields initialized, but not directly with parameters
-      self.assertTrue(None is instance.last_nonce_sent)
+      self.assertIsNone(instance.last_nonce_sent)
       self.assertTrue(instance.nonce_next) # Random value
       self.assertIsInstance(
           instance.updater, tuf.client.updater.Updater)
@@ -448,7 +499,7 @@ class TestSecondary(unittest.TestCase):
     """
     # We'll just test one of the three client instances, since it shouldn't
     # make a difference.
-    instance = secondary_instances[0]
+    instance = TEST_INSTANCES[0]['instance']
 
     old_nonce = instance.nonce_next
 
@@ -471,7 +522,7 @@ class TestSecondary(unittest.TestCase):
 
     # We'll just test one of the three client instances, since it shouldn't
     # make a difference.
-    instance = secondary_instances[0]
+    instance = TEST_INSTANCES[0]['instance']
 
     # Try a good time attestation first, signed by an expected timeserver key,
     # with an expected nonce (previously "received" from a Secondary)
@@ -574,7 +625,7 @@ class TestSecondary(unittest.TestCase):
 
     # We'll just test one of the three client instances, since it shouldn't
     # make a difference.
-    ecu_manifest = secondary_instances[0].generate_signed_ecu_manifest()
+    ecu_manifest = TEST_INSTANCES[0]['instance'].generate_signed_ecu_manifest()
 
     # If the ECU Manifest is in DER format, check its format and then
     # convert back to JSON so that we can inspect it further.
@@ -612,9 +663,9 @@ class TestSecondary(unittest.TestCase):
     Tests uptane.clients.secondary.Secondary::process_metadata()
 
     Tests three clients:
-     - secondary_instances[0]: an update is provided in Director metadata
-     - secondary_instances[1]: no update is provided in Director metadata
-     - secondary_instances[2]: no Director metadata can be retrieved
+     - TEST_INSTANCES[0]: an update is provided in Director metadata
+     - TEST_INSTANCES[1]: no update is provided in Director metadata
+     - TEST_INSTANCES[2]: no Director metadata can be retrieved
     """
 
     # --- Test this test module's setup (defensive)
@@ -623,48 +674,64 @@ class TestSecondary(unittest.TestCase):
     # client directories when the directories were created by the
     # create_directory_structure_for_client() calls in setUpClass above, and
     # only the root metadata file.
-    for client_dir in TEMP_CLIENT_DIRS:
-      for repo in ['director', 'imagerepo']:
+    for instance_data in TEST_INSTANCES:
+      if instance_data['partial_verifying']:
+        repo_list = ['director']
+      else:
+        repo_list = ['director', 'imagerepo']
+      for repo in repo_list:
         self.assertEqual(
             ['root.' + tuf.conf.METADATA_FORMAT],
             sorted(os.listdir(os.path.join(
-                client_dir, 'metadata', repo, 'current'))))
+                instance_data['client_dir'], 'metadata', repo, 'current'))))
 
     # --- Set up this test
 
     # Location of the sample Primary-produced metadata archive
-    sample_archive_fname = os.path.join(
+    sample_fv_archive_fname = os.path.join(
         uptane.WORKING_DIR, 'samples', 'metadata_samples_long_expiry',
         'update_to_one_ecu', 'full_metadata_archive.zip')
+    sample_pv_archive_fname = os.path.join(
+      uptane.WORKING_DIR, 'samples', 'metadata_samples_long_expiry',
+      'update_to_one_ecu', 'partial_metadata_archive.zip')
 
-    assert os.path.exists(sample_archive_fname), 'Cannot test ' \
+
+    assert os.path.exists(sample_fv_archive_fname), 'Cannot test ' \
         'process_metadata; unable to find expected sample metadata archive' + \
-        ' at ' + repr(sample_archive_fname)
+        ' at ' + repr(sample_fv_archive_fname)
+    assert os.path.exists(sample_pv_archive_fname), 'Cannot test ' \
+        'process_metadata; unable to find expected sample metadata archive' + \
+        ' at ' + repr(sample_pv_archive_fname)
 
 
     # Continue set-up followed by the test, per client.
-    for i in range(0, len(TEMP_CLIENT_DIRS)):
-      client_dir = TEMP_CLIENT_DIRS[i]
-      instance = secondary_instances[i]
+    # Only tests the full verification secondaries
+    for instance_data in TEST_INSTANCES:
+
+      client_dir = instance_data['client_dir']
+      instance = instance_data['instance']
 
       # Make sure TUF uses the right client directory.
       # Hack to allow multiple clients to run in the same Python process.
       # See comments in SetUpClass() method.
       tuf.conf.repository_directory = client_dir
 
-      # Location in the client directory to which we'll copy the archive.
-      archive_fname = os.path.join(client_dir, 'full_metadata_archive.zip')
-
-      # Copy the sample archive into place in the client directory.
-      shutil.copy(sample_archive_fname, archive_fname)
+      # Getting the location in the client directory to which we'll copy the archive
+      # and then copy the sample archive into place in the client directory.
+      if instance_data['partial_verifying']:
+        archive_fname = os.path.join(client_dir, 'partial_metadata_archive.zip')
+        shutil.copy(sample_pv_archive_fname, archive_fname)
+      else:
+        archive_fname = os.path.join(client_dir, 'full_metadata_archive.zip')
+        shutil.copy(sample_fv_archive_fname, archive_fname)
 
 
       # --- Perform the test
 
-      # Process this sample metadata.
+      # Process this sample metadata
 
-      if instance is secondary_instances[2]:
-        # Expect the update to fail for the third Secondary client.
+      if instance_data in [TEST_INSTANCES[2], TEST_INSTANCES[5]]:
+        # Expect the update to fail for the third and fifth Secondary client.
         with self.assertRaises(tuf.NoWorkingMirrorError):
           instance.process_metadata(archive_fname)
         continue
@@ -673,8 +740,14 @@ class TestSecondary(unittest.TestCase):
         instance.process_metadata(archive_fname)
 
       # Make sure the archive of unverified metadata was expanded
-      for repo in ['director', 'imagerepo']:
-        for role in ['root', 'snapshot', 'targets', 'timestamp']:
+      if instance_data['partial_verifying']:
+        repo_list = ['director']
+        roles_list = ['targets']
+      else:
+        repo_list = ['director', 'imagerepo']
+        roles_list = ['root', 'snapshot', 'targets', 'timestamp']
+      for repo in repo_list:
+        for role in roles_list:
           self.assertTrue(os.path.exists(client_dir + '/unverified/' + repo +
               '/metadata/' + role + '.' + tuf.conf.METADATA_FORMAT))
 
@@ -685,41 +758,60 @@ class TestSecondary(unittest.TestCase):
 
     # For clients 0 and 1, we expect root, snapshot, targets, and timestamp for
     # both director and image repo.
-    for client_dir in [TEMP_CLIENT_DIRS[0], TEMP_CLIENT_DIRS[1]]:
-      for repo in ['director', 'imagerepo']:
-        self.assertEqual([
-            'root.' + tuf.conf.METADATA_FORMAT,
-            'snapshot.' + tuf.conf.METADATA_FORMAT,
-            'targets.' + tuf.conf.METADATA_FORMAT,
-            'timestamp.' + tuf.conf.METADATA_FORMAT],
-            sorted(os.listdir(os.path.join(client_dir, 'metadata', repo,
-            'current'))))
+    # For clients 3 and 4, we expect root and targets for director repo
+    for instance_data in (TEST_INSTANCES[0:2] + TEST_INSTANCES[3:5]):
+      if instance_data['partial_verifying']:
+        repo_list = ['director']
+        # Both root and targets as there is root file needed to establish a root
+        # of trust while shipping the ECU
+        roles_list = ['root','targets']
+      else:
+        repo_list = ['director', 'imagerepo']
+        roles_list = ['root', 'snapshot', 'targets', 'timestamp']
+      roles_in_repo_directory = []
 
-    # For client 2, we are certain that Director metadata will have failed to
+      for role in roles_list:
+        roles_in_repo_directory.append(
+            role + '.' + tuf.conf.METADATA_FORMAT)
+
+      for repo in repo_list:
+        self.assertEqual(roles_in_repo_directory,
+            sorted(os.listdir(os.path.join(instance_data['client_dir'],
+            'metadata', repo, 'current'))))
+
+    # For client 2 and 5, we are certain that Director metadata will have failed to
     # update. Image Repository metadata may or may not have updated before the
     # Director repository update failure, so we don't check that. Client 2
     # started with root metadata for the Director repository, so that is all
     # we expect to find.
-    self.assertEqual(
-        ['root.' + tuf.conf.METADATA_FORMAT],
-        sorted(os.listdir(os.path.join(TEMP_CLIENT_DIRS[2], 'metadata',
-        'director', 'current'))))
+    for instance_data in [TEST_INSTANCES[2], TEST_INSTANCES[5]]:
+      self.assertEqual(
+          ['root.' + tuf.conf.METADATA_FORMAT],
+          sorted(os.listdir(os.path.join(instance_data['client_dir'],
+          'metadata', 'director', 'current'))))
 
 
     # Second: Check targets each Secondary client has been instructed to
     # install (and has in turn validated).
-    # Client 0 should have validated expected_updated_fileinfo.
+    # Client 0 should have validated fv_expected_updated_fileinfo.
     self.assertEqual(
-        expected_updated_fileinfo,
-        secondary_instances[0].validated_targets_for_this_ecu[0])
+        fv_expected_updated_fileinfo,
+        TEST_INSTANCES[0]['instance'].validated_targets_for_this_ecu[0])
 
-    # Clients 1 and 2 should have no validated targets.
-    self.assertFalse(secondary_instances[1].validated_targets_for_this_ecu)
-    self.assertFalse(secondary_instances[2].validated_targets_for_this_ecu)
+    # Client 3 should have validated pv_expected_updated_fileinfo.
+    self.assertEqual(
+        pv_expected_updated_fileinfo,
+        TEST_INSTANCES[3]['instance'].validated_targets_for_this_ecu[0])
+
+    # Clients 1, 2, 4 and should have no validated targets.
+    self.assertFalse(TEST_INSTANCES[1]['instance'].validated_targets_for_this_ecu)
+    self.assertFalse(TEST_INSTANCES[2]['instance'].validated_targets_for_this_ecu)
+    self.assertFalse(TEST_INSTANCES[4]['instance'].validated_targets_for_this_ecu)
+    self.assertFalse(TEST_INSTANCES[5]['instance'].validated_targets_for_this_ecu)
 
 
     # Finally, test behavior if the file we indicate does not exist.
-    instance = secondary_instances[0]
+    instance = TEST_INSTANCES[0]['instance']
     with self.assertRaises(uptane.Error):
       instance.process_metadata('some_file_that_does_not_actually_exist.xyz')
 
@@ -729,24 +821,54 @@ class TestSecondary(unittest.TestCase):
 
   def test_50_validate_image(self):
 
-    image_fname = 'TCU1.1.txt'
+    # In these tests, Secondary ECU were or were not given instructions to
+    # install a new update
+    # If instructed
+    #   full verification Secondary will install 'TCU1.1.txt'
+    #   partial verification Secondary will install 'BCU1.1.txt'
+    fv_image_fname = 'TCU1.1.txt'
+    pv_image_fname = 'BCU1.1.txt'
+
     sample_image_location = os.path.join(demo.DEMO_DIR, 'images')
-    client_unverified_targets_dir = TEMP_CLIENT_DIRS[0] + '/unverified_targets'
 
-    if os.path.exists(client_unverified_targets_dir):
-      shutil.rmtree(client_unverified_targets_dir)
-    os.mkdir(client_unverified_targets_dir)
+    # Copy the firmware into the Secondary's unverified targets directory.
+    # (This is what the Secondary would do when receiving the file from
+    # the Primary.)
+    # Delete and recreate the unverified targets directory first.
+    for instance_data in TEST_INSTANCES:
+      client_unverified_targets_dir = os.path.join(
+        instance_data['client_dir'], 'unverified_targets')
 
-    shutil.copy(
-        os.path.join(sample_image_location, image_fname),
-        client_unverified_targets_dir)
+      if os.path.exists(client_unverified_targets_dir):
+        shutil.rmtree(client_unverified_targets_dir)
+      os.mkdir(client_unverified_targets_dir)
 
-    secondary_instances[0].validate_image(image_fname)
+      if instance_data['partial_verifying']:
+        image_fname = pv_image_fname
+      else:
+        image_fname = fv_image_fname
+
+      shutil.copy(
+          os.path.join(sample_image_location, image_fname),
+          client_unverified_targets_dir)
+
+    # Validate the appropriate update image for each secondary
+
+    # Secondaries 0-2 are running full verification
+    TEST_INSTANCES[0]['instance'].validate_image(fv_image_fname)
 
     with self.assertRaises(uptane.Error):
-      secondary_instances[1].validate_image(image_fname)
+      TEST_INSTANCES[1]['instance'].validate_image(fv_image_fname)
     with self.assertRaises(uptane.Error):
-      secondary_instances[2].validate_image(image_fname)
+      TEST_INSTANCES[2]['instance'].validate_image(fv_image_fname)
+
+    #Secondaries 3-5 are running partial verification
+    TEST_INSTANCES[3]['instance'].validate_image(pv_image_fname)
+
+    with self.assertRaises(uptane.Error):
+      TEST_INSTANCES[4]['instance'].validate_image(pv_image_fname)
+    with self.assertRaises(uptane.Error):
+      TEST_INSTANCES[5]['instance'].validate_image(pv_image_fname)
 
 
 
