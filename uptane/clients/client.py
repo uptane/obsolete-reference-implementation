@@ -14,28 +14,18 @@ from __future__ import unicode_literals
 
 import uptane # Import before TUF modules; may change tuf.conf values.
 
-import os # For paths and makedirs
-import shutil # For copyfile
-import random # for nonces
-import zipfile # to expand the metadata archive retrieved from the Primary
-import hashlib
 import iso8601
 
 import tuf.formats
 import tuf.conf
 import tuf.keys
 import tuf.client.updater
-import tuf.repository_tool as rt
 
 import uptane.formats
 import uptane.common
-import uptane.services.director as director
-import uptane.services.timeserver as timeserver
 import uptane.encoding.asn1_codec as asn1_codec
 
 from uptane.encoding.asn1_codec import DATATYPE_TIME_ATTESTATION
-from uptane.encoding.asn1_codec import DATATYPE_ECU_MANIFEST
-from uptane.encoding.asn1_codec import DATATYPE_VEHICLE_MANIFEST
 
 
 log = uptane.logging.getLogger('client')
