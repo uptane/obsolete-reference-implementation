@@ -92,10 +92,6 @@ class Primary(Client):
       should be aware of the corresponding public key, so that it can validate
       these Vehicle Manifests. Conforms to tuf.formats.ANYKEY_SCHEMA.
 
-    self.updater
-      A tuf.client.updater.Updater object used to retrieve metadata and
-      target files from the Director and Supplier repositories.
-
     self.full_client_dir
       The full path of the directory where all client data is stored for this
       Primary. This includes verified and unverified metadata and images and
@@ -143,18 +139,6 @@ class Primary(Client):
       have already sent to the Timeserver. Will be checked against the
       Timeserver's response.
 
-    # TODO: Rename these two variables, valid -> verified, along with the
-    #       verification functions.  Do likewise in Secondary.
-    self.all_valid_timeserver_attestations:
-      A list of all attestations received from Timeservers that have been
-      verified by update_time().
-      Items are appended to the end.
-
-    self.all_valid_timeserver_times:
-      A list of all times extracted from all Timeserver attestations that have
-      been verified by update_time().
-      Items are appended to the end.
-
     self.distributable_full_metadata_archive_fname:
       The filename at which the full metadata archive is stored after each
       update cycle. Path is relative to uptane.WORKING_DIR. This is atomically
@@ -179,9 +163,8 @@ class Primary(Client):
 
     Lower-level methods called by primary_update_cycle() to perform retrieval
     and validation of metadata and data from central services:
-      refresh_toplevel_metadata()
-      get_target_list_from_director()
-      get_validated_target_info()
+      client->get_target_list_from_director()
+      client->get_validated_target_info()
 
     Components of the interface available to a Secondary client:
       register_ecu_manifest(vin, ecu_serial, nonce, signed_ecu_manifest)
@@ -200,6 +183,7 @@ class Primary(Client):
     import uptane.clients.primary as primary
     p = primary.Primary(
         full_client_dir='/Users/s/w/uptane/temp_primarymetadata',
+        director_repo_name='director'
         vin='vin11111',
         ecu_serial='ecu00000',
         timeserver_public_key=<some key>)
@@ -248,7 +232,7 @@ class Primary(Client):
 
       ecu_serial            See class docstring above.
 
-      ecu_key           See class docstring above.
+      ecu_key               See class docstring above.
 
       timeserver_public_key See class docstring above.
 
@@ -257,7 +241,6 @@ class Primary(Client):
       time
         An initial time to set the Primary's "clock" to, conforming to
         tuf.formats.ISO8601_DATETIME_SCHEMA.
-
 
     <Exceptions>
 

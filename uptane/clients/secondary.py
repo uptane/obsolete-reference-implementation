@@ -88,10 +88,6 @@ class Secondary(Client):
       corresponding public key, so that it can validate these ECU Manifests.
       Conforms to tuf.formats.ANYKEY_SCHEMA.
 
-    self.updater:
-      A tuf.client.updater.Updater object used to retrieve metadata and
-      target files from the Director and Image repositories.
-
     self.full_client_dir:
       The full path of the directory where all client data is stored for this
       secondary. This includes verified and unverified metadata and images and
@@ -165,7 +161,7 @@ class Secondary(Client):
       process_metadata(metadata_archive_fname)
       _expand_metadata_archive(metadata_archive_fname)
       fully_validate_metadata()
-      get_validated_target_info(target_filepath)
+      client->get_validated_target_info(target_filepath)
       validate_image(image_fname)
 
 

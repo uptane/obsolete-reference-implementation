@@ -86,9 +86,16 @@ class Client(object):
       time attestations from the Timeserver.
       Conforms to tuf.formats.ANYKEY_SCHEMA.
 
+    # TODO: Rename these two variables, valid -> verified, along with the
+    #       verification functions.  Do likewise in Secondary.
+    self.all_valid_timeserver_attestations:
+      A list of all attestations received from Timeservers that have been
+      verified by update_time().
+      Items are appended to the end.
+
     self.all_valid_timeserver_times:
       A list of all times extracted from all Timeserver attestations that have
-      been verified by update_time.
+      been verified by update_time().
       Items are appended to the end.
 
   """
