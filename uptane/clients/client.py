@@ -288,10 +288,10 @@ class Client(object):
       # repos couldn't provide validated target file info, we'd have caught an
       # error earlier instead.
 
-      raise uptane.Error('Unexpected behavior: did not receive target info from'
-          ' Director repository (' + repr(self.director_repo_name) + ') for '
+      raise uptane.Error('Unexpected behavior: did not receive target info from '
+          'Director repository (' + repr(self.director_repo_name) + ') for '
           'a target (' + repr(target_filepath) + '). Is pinned.json configured '
-          'to allow some targets to validate without Director approval, or is'
+          'to allow some targets to validate without Director approval, or is '
           'the wrong repository specified as the Director repository in the '
           'initialization of this primary object?')
 
