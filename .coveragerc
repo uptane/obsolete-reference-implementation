@@ -1,0 +1,9 @@
+[run]
+branch = True
+
+omit =
+  */site-package/*
+  */python?.?/*
+  */tuf/*
+  tests/*
+  demo/*

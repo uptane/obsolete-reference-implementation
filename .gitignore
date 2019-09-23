@@ -6,8 +6,12 @@ v2/*
 temp_*
 __pycache__/*
 tuf.log
+uptane.log
 clean_*/*
 temp_*/*
 *.egg-info
 __pycache__
 *.pyc
+.tox/
+htmlcov/
+.coverage
