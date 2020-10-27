@@ -1,6 +1,6 @@
 canonicaljson==1.1.4
 cffi==1.11.5
-cryptography==2.3
+cryptography==3.2
 pynacl==1.2.1
 pyasn1==0.4.4
 pycrypto==2.6.1
