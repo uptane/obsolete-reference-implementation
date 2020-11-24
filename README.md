@@ -1,3 +1,9 @@
+*NOTE: This implementation is not currently maintained, and may represent an
+outdated version of the [Uptane
+Standard](https://uptane.github.io/uptane-standard/uptane-standard.html).*
+
+---
+
 # [Uptane](https://uptane.github.io): Securing Software Updates for Automobiles
 
 Reference Implementation and demonstration code
