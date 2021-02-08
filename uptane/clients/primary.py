@@ -227,6 +227,8 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     director_repo_name, # e.g. 'director'; value must appear in pinning file
     vin,              # 'vin11111'
     ecu_serial,       # 'ecu00000'
+    hardware_id,
+    release_counter,
     primary_key,
     time,
     timeserver_public_key,
@@ -283,6 +285,8 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
 
     self.vin = vin
     self.ecu_serial = ecu_serial
+    self.hardware_id = hardware_id
+    self.release_counter = release_counter
     self.full_client_dir = full_client_dir
     # TODO: Consider removing time from [time] here and starting with an empty
     #       list, or setting time to 0 to start by default.
@@ -475,6 +479,35 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
           'the wrong repository specified as the Director repository in the '
           'initialization of this primary object?')
 
+    directed_targets = validated_target_info[self.director_repo_name]
+
+    temp_release_counter = None
+    temp_hardware_id = None
+
+    # Check if the hardware ID and release_counter specified in metadata
+    # of all the repositories correspond to each other.
+
+    for repo_name in validated_target_info.keys():
+      repo_targets = validated_target_info[repo_name]
+      current_hardware_id = repo_targets['fileinfo']['custom']['hardware_id']
+      current_release_counter = repo_targets['fileinfo']['custom']['hardware_id']
+
+      if temp_release_counter is None:
+        temp_release_counter = current_release_counter
+      elif temp_release_counter != current_release_counter:
+        raise uptane.ImageRollBackAttempt('Bad value for the field \
+              hardware_ID in the that did not correspond the value in \
+              the other repos. Value did not match between the director \
+              and the other repos. The value of director target is {}'.format(
+              repr(directed_targets)))
+
+      if temp_hardware_id is None:
+        temp_hardware_id = current_hardware_id
+      elif temp_hardware_id != current_hardware_id:
+        raise uptane.HardwareIDMismatch('Bad value for the field \
+                      hardware_ID. It did not match to the value in \
+                      other repo')
+
     # Defensive coding: this should already have been checked.
     tuf.formats.TARGETFILE_SCHEMA.check_match(
         validated_target_info[self.director_repo_name])
@@ -570,6 +603,46 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
               text='The Director has instructed us to download a file that '
               'does not exactly match the Image Repository metadata. '
               'File: ' + repr(target_filepath), sound=TADA)
+          time.sleep(3)
+
+      except uptane.HardwareIDMismatch:
+        log.warning(RED + 'Director has instructed us to download a target (' +
+            target_filepath + ') that is not validated by the combination of '
+            'Image + Director Repositories. That update IS BEING SKIPPED. It '
+            'the hardware IDs do not match between image and director '
+            'repositories. Try again, but if this happens often, you may be '
+            'connecting to an untrustworthy Director, or there may be an '
+            'untrustworthy Image Repository, or the Director and Image '
+            'Repository may be out of sync.' + ENDCOLORS)
+
+        # If running the demo, display splash banner indicating the rejection.
+        # This clause should be pulled out of the reference implementation when
+        # possible.
+        if uptane.DEMO_MODE:  # pragma: no cover
+          print_banner(BANNER_DEFENDED, color=WHITE + DARK_BLUE_BG,
+                       text='The Director has instructed us to download a file that '
+                            'does not exactly match the Image Repository metadata. '
+                            'File: ' + repr(target_filepath), sound=TADA)
+          time.sleep(3)
+
+      except uptane.ImageRollBackAttempt:
+        log.warning(RED + 'Dorector has instructed us to download a target (' +
+            target_filepath + ') that is not validated by the combination of '
+            'Image + Director Repositories. That update IS BEING SKIPPED. It '
+            'the release counters do not match between image and director '
+            'repositories. Try again, but if this happens often, you may be '
+            'connecting to an untrustworthy Director, or there may be an '
+            'untrustworthy Image Repository, or the Director and Image '
+            'Repository may be out of sync.' + ENDCOLORS)
+
+        # If running the demo, display splash banner indicating the rejection.
+        # This clause should be pulled out of the reference implementation when
+        # possible.
+        if uptane.DEMO_MODE:  # pragma: no cover
+          print_banner(BANNER_DEFENDED, color=WHITE + DARK_BLUE_BG,
+                       text='The Director has instructed us to download a file that '
+                            'does not exactly match the Image Repository metadata. '
+                            'File: ' + repr(target_filepath), sound=TADA)
           time.sleep(3)
 
 

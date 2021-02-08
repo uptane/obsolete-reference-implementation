@@ -590,7 +590,8 @@ def undo_sign_with_compromised_keys_attack(vin=None):
 
 
 
-def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
+def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial,
+    hardware_id = None, release_counter = None ):
   """
   For use in attacks and more specific demonstration.
 
@@ -614,6 +615,16 @@ def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
     ecu_serial
       The ECU to assign this target to in the targets metadata.
       Complies with uptane.formats.ECU_SERIAL_SCHEMA
+
+    hardware_id
+      A uniques idetifier for ECU classifying the ECU based on the hardware
+      type. This may be used to prevent installation of images with is not
+      supported by the hardware type.
+
+    release_counter
+      An index to track the version number of the firmware of the ECU.
+      This is used to prevent the roll-back attack by a compromised
+      director.
 
   """
   uptane.formats.VIN_SCHEMA.check_match(vin)
@@ -640,7 +651,7 @@ def add_target_to_director(target_fname, filepath_in_repo, vin, ecu_serial):
 
   # This calls the appropriate vehicle repository.
   director_service_instance.add_target_for_ecu(
-      vin, ecu_serial, destination_filepath)
+      vin, ecu_serial, destination_filepath, hardware_id, release_counter)
 
 
 
@@ -1191,7 +1202,8 @@ def clear_vehicle_targets(vin):
 
 
 
-def add_target_and_write_to_live(filename, file_content, vin, ecu_serial):
+def add_target_and_write_to_live(filename, file_content, vin, ecu_serial,
+    hardware_id = None, release_counter = None):
   """
   High-level version of add_target_to_director() that creates 'filename'
   and writes the changes to the live directory repository.
@@ -1207,7 +1219,7 @@ def add_target_and_write_to_live(filename, file_content, vin, ecu_serial):
   # The path that will identify the file in the repository.
   filepath_in_repo = filename
 
-  add_target_to_director(filename, filepath_in_repo, vin, ecu_serial)
+  add_target_to_director(filename, filepath_in_repo, vin, ecu_serial, hardware_id, release_counter)
   write_to_live(vin_to_update=vin)
 
 

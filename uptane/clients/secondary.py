@@ -177,6 +177,8 @@ class Secondary(object):
     ecu_key,
     time,
     timeserver_public_key,
+    hardware_id,
+    release_counter,
     firmware_fileinfo=None,
     director_public_key=None,
     partial_verifying=False):
@@ -244,6 +246,8 @@ class Secondary(object):
     self.ecu_key = ecu_key
     self.vin = vin
     self.ecu_serial = ecu_serial
+    self.hardware_id = hardware_id
+    self.release_counter = release_counter
     self.full_client_dir = full_client_dir
     self.director_proxy = None
     self.timeserver_public_key = timeserver_public_key
@@ -550,8 +554,25 @@ class Secondary(object):
       # Ignore target info not marked as being for this ECU.
       if 'custom' not in target['fileinfo'] or \
           'ecu_serial' not in target['fileinfo']['custom'] or \
+          'hardware_id' not in target['fileinfo']['custom'] or \
+          'release_counter' not in target['fileinfo']['custom']or \
           self.ecu_serial != target['fileinfo']['custom']['ecu_serial']:
         continue
+      elif self.hardware_id != \
+          target['fileinfo']['custom']['hardware_id']:
+
+        raise uptane.HardwareIDMismatch('Recieved a instruction'
+            'by the director install a target for which the'
+            'hardware id does not match with that of the ECU. '
+            'Disregarding the target')
+
+      elif self.release_counter > \
+          int(target['fileinfo']['custom']['release_counter']):
+
+        raise uptane.ImageRollBackAttempt('Recieved a instruction from the'
+            'director to install a image for which the release counter is'
+            'less than that of the firmware currently installed on the ECU.'
+            'Disregardng the target')
 
       # Fully validate the target info for our target(s).
       try:
@@ -615,6 +636,17 @@ class Secondary(object):
     # This entails using the local metadata files as a repository.
     self.fully_validate_metadata()
 
+
+
+
+
+  def update_release_counter(self, new_release_counter):
+    """
+    To update the current release counter of the ECU with
+    the new release counter of the firmware
+    """
+
+    self.release_counter = new_release_counter
 
 
 

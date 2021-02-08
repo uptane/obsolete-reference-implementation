@@ -63,6 +63,8 @@ CLIENT_DIRECTORY = None
 #_client_directory_name = 'temp_primary' # name for this Primary's directory
 _vin = 'democar'
 _ecu_serial = 'INFOdemocar'
+_hardware_id = 'TYEP1'
+_release_counter = 0
 # firmware_filename = 'infotainment_firmware.txt'
 
 
@@ -80,16 +82,22 @@ def clean_slate(
     use_new_keys=False,
     # client_directory_name=None,
     vin=_vin,
-    ecu_serial=_ecu_serial):
+    ecu_serial=_ecu_serial,
+    hardware_id = _hardware_id,
+    release_counter = _release_counter):
   """
   """
   global primary_ecu
   global CLIENT_DIRECTORY
   global _vin
   global _ecu_serial
+  global _hardware_id
+  global _release_counter
   global listener_thread
   _vin = vin
   _ecu_serial = ecu_serial
+  _hardware_id = hardware_id
+  _release_counter = release_counter
 
   # if client_directory_name is not None:
   #   CLIENT_DIRECTORY = client_directory_name
@@ -138,6 +146,8 @@ def clean_slate(
       director_repo_name=demo.DIRECTOR_REPO_NAME,
       vin=_vin,
       ecu_serial=_ecu_serial,
+      hardware_id = _hardware_id,
+      release_counter = _release_counter,
       primary_key=ecu_key,
       time=clock,
       timeserver_public_key=key_timeserver_pub)
@@ -307,7 +317,20 @@ def update_cycle():
         else:
           raise
 
-  # All targets have now been downloaded.
+  except uptane.ImageRollBack:
+    print_banner(BANNER_DEFENDED, color=WHITE + DARK_BLUE_BG,
+                 text='The Director has instructed us to download an image'
+                      ' that has a bad release counter and does not match with '
+                      ' other repositories. This image has'
+                      ' been rejected.', sound=TADA)
+  except uptane.HardwareIDMismatch:
+    print_banner(BANNER_DEFENDED, color=WHITE + DARK_BLUE_BG,
+                 text='The Director has instructed us to download an image'
+                      ' that is not meant for the stated ECU. HardwareIDdoes not'
+                      ' match with other repositorie. This image has'
+                      ' been rejected.', sound=TADA)
+
+    # All targets have now been downloaded.
 
 
   # Generate and submit vehicle manifest.

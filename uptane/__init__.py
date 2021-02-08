@@ -75,6 +75,18 @@ class FailedToEncodeASN1DER(Error):
   """
   pass
 
+class HardwareIDMismatch(Error):
+  """
+  Recieved an instruction from director install an image that dosen't match the
+  hardware type of this ECU.
+  """
+  pass
+
+class ImageRollBackAttempt(Error):
+  """
+  Recieved an instruction to install an image with the release counter value
+  lower than that of the image currently insatlled on the ECU.
+  """
 
 # Logging configuration
 
