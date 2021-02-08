@@ -659,6 +659,29 @@ def listen():
 
 
 
+def ATTACK_corrupt_the_manifest_of_secondary():
+  """
+    Attack: MITM w/o key modifies secondary ECU manifest.
+    Modify the ECU manifest without updating the signature.
+  """
+
+  import copy
+
+  # Copy the most recent signed ecu manifest sent by the seconday,
+  # then modify it and add it back to the list of ecu manifets.
+  corrupt_signed_manifest = copy.copy(primary_ecu.ecu_manifests['TCUdemocar'][-1])
+  corrupt_signed_manifest['signed']['attacks_detected'] += 'Everything is great, I PROMISE!'
+  primary_ecu.ecu_manifests['TCUdemocar'].append(corrupt_signed_manifest)
+
+  print(YELLOW + 'ATTACK: Corrupted Secondary Manifest (bad signature):' + ENDCOLORS)
+  print('   Modified the signed manifest of a Secondary as a MITM, simply changing a value:')
+  print('   The attacks_detected field now reads "' + RED +
+        repr(corrupt_signed_manifest['signed']['attacks_detected']) + ENDCOLORS)
+
+
+
+
+
 def clean_up_temp_file(filename):
   """
   Deletes the pinned file and temp directory created by the demo
