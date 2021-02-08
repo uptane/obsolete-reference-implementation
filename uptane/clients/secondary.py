@@ -30,9 +30,11 @@ import random # for nonces
 import zipfile # to expand the metadata archive retrieved from the Primary
 import hashlib
 import iso8601
+import six
 
 import tuf.formats
 import tuf.keys
+import tuf.keydb as key_database
 import tuf.client.updater
 import tuf.repository_tool as rt
 
@@ -564,8 +566,108 @@ class Secondary(object):
             ENDCOLORS)
         continue
 
+    if validated_targets_for_this_ecu:
+      self.validated_targets_for_this_ecu = validated_targets_for_this_ecu
 
-    self.validated_targets_for_this_ecu = validated_targets_for_this_ecu
+
+
+
+
+  def partial_validate_metadata(self):
+    """
+    <Purpose>
+      This validates and processes the metadata, determining what firmware
+      the Director has instructed this partial-verification Secondary ECU to
+      install.
+      The given metadata replaces this client's current Director metadata if
+      the given metadata is valid -- i.e. if the metadata:
+        - is signed by a key matching self.director_public_key
+        - and is not expired (current date is before metadata's expiration date)
+        - and does not have an older version number than this client has
+          previously seen -- i.e. is not a rollback)
+      Otherwise, an exception is raised indicating that the metadata is not
+      valid.
+      Further, if the metadata is valid, this function then updates
+      self.validated_target_for_this_ecu if the metadata also lists a target
+      for this ECU (i.e. includes a target with field "ecu_serial" set to this
+      ECU's serial number)
+
+    <Returns>
+      None
+
+    <Exceptions>
+      tuf.BadSignatureError
+        if the signature over the Targets metadata is not a valid
+        signature by the key corresponding to self.director_public_key, or if
+        the key type listed in the signature does not match the key type listed
+        in the public key
+      tuf.ExpiredMetadataError
+        if the Targets metadata is expired
+      tuf.ReplayedMetadataError
+        if the Targets metadata has a lower version number than
+        the last Targets metadata this client deemed valid (rollback)
+
+
+    <Side-Effects>
+      May update this client's metadata (Director Targets); see <Purpose>
+      May update self.validated_targets_for_this_ecu; see <Purpose>
+    """
+
+
+    validated_targets_for_this_ecu = []
+
+    upperbound_filelength = tuf.conf.DEFAULT_TARGETS_REQUIRED_LENGTH
+
+    # Add director key in the key_database for metadata verification
+    try:
+      key_database.add_key(
+          self.director_public_key, repository_name=self.director_repo_name)
+    except tuf.KeyAlreadyExistsError:
+      log.debug('Key already present in the key database')
+
+    director_obj = self.updater.repositories['director']
+
+    # _update_metadata downloads, verifies, and 'installs'
+    # the director metadata and, if it successful, than
+    # the current and previous metadata stores are updated.
+    director_obj._update_metadata('targets', upperbound_filelength)
+
+    # TODO: If this Targets metadata file indicates that
+    #  the Timeserver key should be rotated then reset the
+    #  clock used to determine the expiration of metadata
+    #  to a minimal value.  It will be updated in the next cycle.
+
+    # Is the metadata is not expired?
+    director_obj._ensure_not_expired(
+        director_obj.metadata['current']['targets'], 'targets')
+
+
+    # Do we have metadata for 'targets'?
+    if 'targets' not in director_obj.metadata['current']:
+      log.debug('No metadata for \'targtes\'. Unable to determine targets.')
+      return
+
+    # To check if targets are specified by the director
+    is_validated_targets_from_director = False
+
+    # Get the targets specified by the role itself.
+    for filepath, fileinfo in six.iteritems(
+        director_obj.metadata['current']['targets']['targets']):
+      new_target = {}
+      new_target['filepath'] = filepath
+      new_target['fileinfo'] = fileinfo
+      is_validated_targets_from_director = True
+
+      if 'custom' not in new_target['fileinfo'] or \
+        'ecu_serial' not in new_target['fileinfo']['custom'] or \
+        self.ecu_serial != new_target['fileinfo']['custom']['ecu_serial']:
+        continue
+
+      validated_targets_for_this_ecu.append(new_target)
+
+    # Update the secondary if targets are specified by the director
+    if is_validated_targets_from_director:
+      self.validated_targets_for_this_ecu = validated_targets_for_this_ecu
 
 
 
@@ -602,18 +704,56 @@ class Secondary(object):
 
   def process_metadata(self, metadata_archive_fname):
     """
-    Expand the metadata archive using _expand_metadata_archive()
-    Validate metadata files using fully_validate_metadata()
-    Select the Director targets.json file
-    Pick out the target file(s) with our ECU serial listed
-    Fully validate the metadata for the target file(s)
+    Runs either partial or full metadata verification, based on the
+    value of self.partial_verifying.
+    Note that in both cases, the use of files and archives is not key. Keep an
+    eye on the procedure without regard to them. The central idea is to take
+    the metadata pointed at by the argument here as untrusted and verify it
+    using the full verification or partial verification algorithms from the
+    Uptane Implementation Specification. It's generally expected that this
+    metadata comes to the Secondary from the Primary, originally from the
+    Director and Image repositories, but the way it gets here does not matter
+    as long as it checks out as trustworthy.
+
+    Full:
+      The given filename, metadata_archive_fname, should point to an archive of all
+      metadata necessary to perform full verification, such as is produced by
+      primary.save_distributable_metadata_files().
+      process_metadata expands this archive to a local directory where
+      repository files are expected to be found (the 'unverified' directory in
+      directory self.full_client_dir).
+      Then, these expanded metadata files are treated as repository metadata by
+      the call to fully_validate_metadata(). The Director targets.json file is
+      selected. The target file(s) with this Secondary's ECU serial listed is
+      fully validated, using whatever provided metadata is necessary, by the
+      underlying TUF code.
+
+    Partial:
+      The given filename, metadata_archive_fname, should point to a single metadata
+      role file, the Director's Targets role. The signature on the Targets role
+      file is validated against the Director's public key
+      (self.director_public_key). If the signature is valid, the new Targets
+      role file is trusted, else it is discarded and TUF raises a
+      tuf.BadSignatureError.
+      (Additional protections come from the Primary
+      having vetted the file for us using full verification, as long as the
+      Primary is trustworthy.)
+      From the trusted Targets role file, the target with this Secondary's
+      ECU identifier/serial listed is chosen, and the metadata describing that
+      target (hash, length, etc.) is extracted from the metadata file and
+      taken as the trustworthy description of the targets file to be installed
+      on this Secondary.
     """
+
     tuf.formats.RELPATH_SCHEMA.check_match(metadata_archive_fname)
 
     self._expand_metadata_archive(metadata_archive_fname)
 
-    # This entails using the local metadata files as a repository.
-    self.fully_validate_metadata()
+    # This verification entails using the local metadata files as a repository.
+    if self.partial_verifying:
+      self.partial_validate_metadata()
+    else:
+      self.fully_validate_metadata()
 
 
 
