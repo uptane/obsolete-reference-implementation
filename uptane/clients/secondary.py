@@ -24,15 +24,19 @@ from io import open # TODO: Determine if this should be here.
 
 import uptane # Import before TUF modules; may change tuf.conf values.
 
+from uptane.clients.client import Client
+
 import os # For paths and makedirs
 import shutil # For copyfile
 import random # for nonces
 import zipfile # to expand the metadata archive retrieved from the Primary
 import hashlib
 import iso8601
+import six
 
 import tuf.formats
 import tuf.keys
+import tuf.keydb as key_database
 import tuf.client.updater
 import tuf.repository_tool as rt
 
@@ -54,7 +58,7 @@ log.setLevel(uptane.logging.DEBUG)
 
 
 
-class Secondary(object):
+class Secondary(Client):
 
   """
   <Purpose>
@@ -83,10 +87,6 @@ class Secondary(object):
       subsequently to the Director). The Director should be aware of the
       corresponding public key, so that it can validate these ECU Manifests.
       Conforms to tuf.formats.ANYKEY_SCHEMA.
-
-    self.updater:
-      A tuf.client.updater.Updater object used to retrieve metadata and
-      target files from the Director and Image repositories.
 
     self.full_client_dir:
       The full path of the directory where all client data is stored for this
@@ -161,7 +161,7 @@ class Secondary(object):
       process_metadata(metadata_archive_fname)
       _expand_metadata_archive(metadata_archive_fname)
       fully_validate_metadata()
-      get_validated_target_info(target_filepath)
+      client->get_validated_target_info(target_filepath)
       validate_image(image_fname)
 
 
@@ -240,13 +240,10 @@ class Secondary(object):
     if director_public_key is not None:
         tuf.formats.ANYKEY_SCHEMA.check_match(director_public_key)
 
-    self.director_repo_name = director_repo_name
-    self.ecu_key = ecu_key
-    self.vin = vin
-    self.ecu_serial = ecu_serial
-    self.full_client_dir = full_client_dir
+    super(Secondary, self).__init__(full_client_dir, director_repo_name, vin,
+                     ecu_serial, ecu_key, time, timeserver_public_key)
+
     self.director_proxy = None
-    self.timeserver_public_key = timeserver_public_key
     self.director_public_key = director_public_key
     self.partial_verifying = partial_verifying
     self.firmware_fileinfo = firmware_fileinfo
@@ -262,16 +259,8 @@ class Secondary(object):
           'only the ')
 
 
-    # Create a TAP-4-compliant updater object. This will read pinned.json
-    # and create single-repository updaters within it to handle connections to
-    # each repository.
-    self.updater = tuf.client.updater.Updater('updater')
-
-    if director_repo_name not in self.updater.pinned_metadata['repositories']:
-      raise uptane.Error('Given name for the Director repository is not a '
-          'known repository, according to the pinned metadata from pinned.json')
-
     # We load the given time twice for simplicity in later code.
+    # TODO: Check if this is necessary.
     self.all_valid_timeserver_times = [time, time]
 
     self.last_nonce_sent = None
@@ -400,30 +389,9 @@ class Secondary(object):
 
     If verification is successful, switch to a new nonce for next time.
     """
-    # If we're using ASN.1/DER format, convert the attestation into something
-    # comprehensible (JSON-compatible dictionary) instead.
-    if tuf.conf.METADATA_FORMAT == 'der':
-      timeserver_attestation = asn1_codec.convert_signed_der_to_dersigned_json(
-          timeserver_attestation, DATATYPE_TIME_ATTESTATION)
-
-    # Check format.
-    uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.check_match(
-        timeserver_attestation)
-
-    # Assume there's only one signature.
-    assert len(timeserver_attestation['signatures']) == 1
-
-    verified = uptane.common.verify_signature_over_metadata(
-        self.timeserver_public_key,
-        timeserver_attestation['signatures'][0],
-        timeserver_attestation['signed'],
-        DATATYPE_TIME_ATTESTATION)
-
-    if not verified:
-      raise tuf.BadSignatureError('Timeserver returned an invalid signature. '
-          'Time is questionable, so not saved. If you see this persistently, '
-          'it is possible that there is a Man in the Middle attack underway.')
-
+    # Verify the signature of the timeserver on the attestation. If not verified,
+    # it raises a BadSignatureError
+    timeserver_attestation = self.verify_timeserver_signature(timeserver_attestation)
 
     # If the most recent nonce we sent is not in the timeserver attestation,
     # then we don't trust the timeserver attestation.
@@ -447,58 +415,9 @@ class Secondary(object):
           'underway between the vehicle and the servers, or within the '
           'vehicle.')
 
-    # Extract actual time from the timeserver's signed attestation.
-    new_timeserver_time = timeserver_attestation['signed']['time']
+    # Update the time of Secondary with the time in attestation
+    self.update_verified_time(timeserver_attestation)
 
-    # Make sure the format is understandable to us before saving the
-    # time.  Convert to a UNIX timestamp.
-    new_timeserver_time_unix = int(tuf.formats.datetime_to_unix_timestamp(
-        iso8601.parse_date(new_timeserver_time)))
-    tuf.formats.UNIX_TIMESTAMP_SCHEMA.check_match(new_timeserver_time_unix)
-
-    # Save verified time.
-    self.all_valid_timeserver_times.append(new_timeserver_time)
-
-    # Set the client's clock.  This will be used instead of system time by TUF.
-    tuf.conf.CLOCK_OVERRIDE = new_timeserver_time_unix
-
-    # Use a new nonce next time, since the nonce we were using has now been
-    # used to successfully verify a timeserver attestation.
-    self.change_nonce()
-
-
-
-
-
-  def refresh_toplevel_metadata(self):
-    """
-    Refreshes client's metadata for the top-level roles:
-      root, targets, snapshot, and timestamp
-
-    See tuf.client.updater.Updater.refresh() for details, or the
-    Uptane Standard, section 5.4.4.2 (Full Verification).
-
-    # TODO: This function is duplicated in primary.py and secondary.py. It must
-    #       be moved to a general client.py as part of a fix to issue #14
-    #       (github.com/uptane/uptane/issues/14).
-     This can raise TUF update exceptions like
-      - tuf.ExpiredMetadataError:
-          if after attempts to update the Root metadata succeeded or failed,
-          whatever currently trusted Root metadata we ended up with was expired.
-      - tuf.NoWorkingMirrorError:
-          if we could not obtain and verify all necessary metadata
-    """
-
-    # Refresh the Director first, per the Uptane Standard.
-    self.updater.refresh(repo_name=self.director_repo_name)
-
-    # Now that we've dealt with the Director repository, deal with any and all
-    # other repositories, presumably Image Repositories.
-    for repository_name in self.updater.repositories:
-      if repository_name == self.director_repo_name:
-        continue
-
-      self.updater.refresh(repo_name=repository_name)
 
 
 
@@ -537,16 +456,14 @@ class Secondary(object):
 
     """
 
-    # Refresh the top-level metadata first (all repositories).
-    self.refresh_toplevel_metadata()
+    # Get list of targets from the Director
+    directed_targets = self.get_target_list_from_director()
 
     validated_targets_for_this_ecu = []
 
     # Comb through the Director's direct instructions, picking out only the
     # target(s) earmarked for this ECU (by ECU Serial)
-    for target in self.updater.targets_of_role(
-        rolename='targets', repo_name=self.director_repo_name):
-
+    for target in directed_targets:
       # Ignore target info not marked as being for this ECU.
       if 'custom' not in target['fileinfo'] or \
           'ecu_serial' not in target['fileinfo']['custom'] or \
@@ -564,37 +481,117 @@ class Secondary(object):
             ENDCOLORS)
         continue
 
-
-    self.validated_targets_for_this_ecu = validated_targets_for_this_ecu
-
-
+    if validated_targets_for_this_ecu:
+      self.validated_targets_for_this_ecu = validated_targets_for_this_ecu
 
 
 
-  def get_validated_target_info(self, target_filepath):
+
+
+  def partial_validate_metadata(self):
     """
-    COPIED EXACTLY, MINUS COMMENTS, from primary.py.
-    # TODO: Refactor later.
-    Throws tuf.UnknownTargetError if unable to find/validate a target.
+    <Purpose>
+      Given the filename of a file containing the Director's Targets role
+      metadata, validates and processes that metadata, determining what firmware
+      the Director has instructed this partial-verification Secondary ECU to
+      install.
+      The given metadata replaces this client's current Director metadata if
+      the given metadata is valid -- i.e. if the metadata:
+        - is signed by a key matching self.director_public_key
+        - and is not expired (current date is before metadata's expiration date)
+        - and does not have an older version number than this client has
+          previously seen -- i.e. is not a rollback)
+      Otherwise, an exception is raised indicating that the metadata is not
+      valid.
+      Further, if the metadata is valid, this function then updates
+      self.validated_target_for_this_ecu if the metadata also lists a target
+      for this ECU (i.e. includes a target with field "ecu_serial" set to this
+      ECU's serial number)
+
+
+    <Arguments>
+      director_targets_metadata_fname
+      Filename of the Director's Targets role metadata, in either JSON or
+      ASN.1/DER format.
+
+
+    <Returns>
+      None
+
+
+    <Exceptions>
+      uptane.Error
+        if director_targets_metadata_fname does not specify a file that exists
+        or if tuf.conf.METADATA_FORMAT is somehow an unsupported format (i.e.
+        not 'json' or 'der')
+      tuf.BadSignatureError
+        if the signature over the Targets metadata is not a valid
+        signature by the key corresponding to self.director_public_key, or if
+        the key type listed in the signature does not match the key type listed
+        in the public key
+      tuf.ExpiredMetadataError
+        if the Targets metadata is expired
+      tuf.ReplayedMetadataError
+        if the Targets metadata has a lower version number than
+        the last Targets metadata this client deemed valid (rollback)
+
+
+    <Side-Effects>
+      May update this client's metadata (Director Targets); see <Purpose>
+      May update self.validated_targets_for_this_ecu; see <Purpose>
     """
-    tuf.formats.RELPATH_SCHEMA.check_match(target_filepath)
 
-    validated_target_info = self.updater.target(
-        target_filepath, multi_custom=True)
 
-    if self.director_repo_name not in validated_target_info:
+    validated_targets_for_this_ecu = []
 
-      raise tuf.Error('Unexpected behavior: did not receive target info from '
-          'Director repository (' + repr(self.director_repo_name) + ') for '
-          'a target (' + repr(target_filepath) + '). Is pinned.json configured '
-          'to allow some targets to validate without Director approval, or is'
-          'the wrong repository specified as the Director repository in the '
-          'initialization of this primary object?')
+    upperbound_filelength = tuf.conf.DEFAULT_TARGETS_REQUIRED_LENGTH
 
-    tuf.formats.TARGETFILE_SCHEMA.check_match(
-        validated_target_info[self.director_repo_name])
+    # Add director key in the key_database for metadata verification
+    try:
+      key_database.add_key(
+          self.director_public_key, repository_name=self.director_repo_name)
+    except tuf.KeyAlreadyExistsError:
+      log.debug('Key already present in the key database')
 
-    return validated_target_info[self.director_repo_name]
+    director_obj = self.updater.repositories['director']
+
+    # _update_metadata carries out the verification of metadata
+    # and then updates the metadata of the repository
+    director_obj._update_metadata('targets', upperbound_filelength)
+
+    # TODO: If this Targets metadata file indicates that
+    #  the Timeserver key should be rotated then reset the
+    #  clock used to determine the expiration of metadata
+    #  to a minimal value.  It will be updated in the next cycle.
+
+    # Is the metadata is not expired?
+    director_obj._ensure_not_expired(director_obj.metadata['current']['targets'], 'targets')
+
+    validated_targets_from_director = []
+    # Do we have metadata for 'targets'?
+    if 'targets' not in director_obj.metadata['current']:
+      log.debug('No metadata for \'targtes\'. Unable to determine targets.')
+      validated_targets_from_director = []
+
+    # Get the targets specified by the role itself.
+    for filepath, fileinfo in six.iteritems(director_obj.metadata['current']['targets']['targets']):
+      new_target = {}
+      new_target['filepath'] = filepath
+      new_target['fileinfo'] = fileinfo
+
+      validated_targets_from_director.append(new_target)
+
+    for target in validated_targets_from_director:
+      # Ignore target info not marked as being for this ECU.
+      if 'custom' not in target['fileinfo'] or \
+        'ecu_serial' not in target['fileinfo']['custom'] or \
+        self.ecu_serial != target['fileinfo']['custom']['ecu_serial']:
+        continue
+
+      validated_targets_for_this_ecu.append(target)
+
+    if validated_targets_from_director:
+      self.validated_targets_for_this_ecu = validated_targets_for_this_ecu
 
 
 
@@ -602,18 +599,56 @@ class Secondary(object):
 
   def process_metadata(self, metadata_archive_fname):
     """
-    Expand the metadata archive using _expand_metadata_archive()
-    Validate metadata files using fully_validate_metadata()
-    Select the Director targets.json file
-    Pick out the target file(s) with our ECU serial listed
-    Fully validate the metadata for the target file(s)
+    Runs either partial or full metadata verification, based on the
+    value of self.partial_verifying.
+    Note that in both cases, the use of files and archives is not key. Keep an
+    eye on the procedure without regard to them. The central idea is to take
+    the metadata pointed at by the argument here as untrusted and verify it
+    using the full verification or partial verification algorithms from the
+    Uptane Implementation Specification. It's generally expected that this
+    metadata comes to the Secondary from the Primary, originally from the
+    Director and Image repositories, but the way it gets here does not matter
+    as long as it checks out as trustworthy.
+
+    Full:
+      The given filename, metadata_fname, should point to an archive of all
+      metadata necessary to perform full verification, such as is produced by
+      primary.save_distributable_metadata_files().
+      process_metadata expands this archive to a local directory where
+      repository files are expected to be found (the 'unverified' directory in
+      directory self.full_client_dir).
+      Then, these expanded metadata files are treated as repository metadata by
+      the call to fully_validate_metadata(). The Director targets.json file is
+      selected. The target file(s) with this Secondary's ECU serial listed is
+      fully validated, using whatever provided metadata is necessary, by the
+      underlying TUF code.
+
+    Partial:
+      The given filename, metadata_fname, should point to a single metadata
+      role file, the Director's Targets role. The signature on the Targets role
+      file is validated against the Director's public key
+      (self.director_public_key). If the signature is valid, the new Targets
+      role file is trusted, else it is discarded and we TUF raises a
+      tuf.BadSignatureError.
+      (Additional protections come from the Primary
+      having vetted the file for us using full verification, as long as the
+      Primary is trustworthy.)
+      From the trusted Targets role file, the target with this Secondary's
+      ECU identifier/serial listed is chosen, and the metadata describing that
+      target (hash, length, etc.) is extracted from the metadata file and
+      taken as the trustworthy description of the targets file to be installed
+      on this Secondary.
     """
+
     tuf.formats.RELPATH_SCHEMA.check_match(metadata_archive_fname)
 
     self._expand_metadata_archive(metadata_archive_fname)
 
-    # This entails using the local metadata files as a repository.
-    self.fully_validate_metadata()
+    # This verification entails using the local metadata files as a repository.
+    if self.partial_verifying:
+      self.partial_validate_metadata()
+    else:
+      self.fully_validate_metadata()
 
 
 

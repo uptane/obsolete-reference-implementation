@@ -3,16 +3,16 @@
   {
    "keyid": "da9c65c96c5c4072f6984f7aa81216d776aca6664d49cb4dfafbc7119320d9cc",
    "method": "ed25519",
-   "sig": "3500dd4af7002c2a7d36c1a4b546b87979805a5c31f6038b39ca19d5d61868b5d3cc8c96c93eb44c3ed862859f45739e926626b73b7beb2d37ceeb83b32c8b0c"
+   "sig": "4d29caea1f135790c99f5112c89833c363e23a72f082dee707bf9723a9c45bda47f8bfd8711a646139e16d892c9a0ea99b86c85f021ce9db28ee70ae3d5c6e07"
   }
  ],
  "signed": {
   "_type": "Timestamp",
-  "expires": "2037-09-28T12:46:29Z",
+  "expires": "2038-01-18T03:14:15Z",
   "meta": {
    "snapshot.json": {
     "hashes": {
-     "sha256": "114817f21566942dbcdafe97e3d1aca1660db86d8920a872c65b76d9890409de"
+     "sha256": "9d98d3a1a89a277eb23fb3237709318fbea54249c539dbf5b53eb8318c75847a"
     },
     "length": 594,
     "version": 1

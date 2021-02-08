@@ -20,6 +20,8 @@ from __future__ import unicode_literals
 
 import uptane # Import before TUF modules; may change tuf.conf values.
 
+from uptane.clients.client import Client
+
 import os # For paths and makedirs
 import shutil # For copyfile
 import random # for nonces
@@ -60,7 +62,7 @@ log.setLevel(uptane.logging.DEBUG)
 
 
 
-class Primary(object): # Consider inheriting from Secondary and refactoring.
+class Primary(Client):
   """
   <Purpose>
     This class contains the necessary code to perform Uptane validation of
@@ -84,15 +86,11 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
       (In other implementations, the important point is that this should be
       unique.) The Director should be aware of this identifier.
 
-    self.primary_key
+    self.ecu_key
       The signing key for this Primary ECU. This key will be used to sign
       Vehicle Manifests that will then be sent to the Director). The Director
       should be aware of the corresponding public key, so that it can validate
       these Vehicle Manifests. Conforms to tuf.formats.ANYKEY_SCHEMA.
-
-    self.updater
-      A tuf.client.updater.Updater object used to retrieve metadata and
-      target files from the Director and Supplier repositories.
 
     self.full_client_dir
       The full path of the directory where all client data is stored for this
@@ -141,25 +139,13 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
       have already sent to the Timeserver. Will be checked against the
       Timeserver's response.
 
-    # TODO: Rename these two variables, valid -> verified, along with the
-    #       verification functions.  Do likewise in Secondary.
-    self.all_valid_timeserver_attestations:
-      A list of all attestations received from Timeservers that have been
-      verified by update_time().
-      Items are appended to the end.
-
-    self.all_valid_timeserver_times:
-      A list of all times extracted from all Timeserver attestations that have
-      been verified by update_time().
-      Items are appended to the end.
-
     self.distributable_full_metadata_archive_fname:
       The filename at which the full metadata archive is stored after each
       update cycle. Path is relative to uptane.WORKING_DIR. This is atomically
       moved into place (renamed) after it has been fully written, to avoid
       race conditions.
 
-    self.distributable_partial_metadata_fname:
+    self.distributable_partial_metadata_archive_fname:
       The filename at which the Director's targets metadata file is stored after
       each update cycle, once it is safe to use. This is atomically moved into
       place (renamed) after it has been fully written, to avoid race conditions.
@@ -177,9 +163,8 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
 
     Lower-level methods called by primary_update_cycle() to perform retrieval
     and validation of metadata and data from central services:
-      refresh_toplevel_metadata()
-      get_target_list_from_director()
-      get_validated_target_info()
+      client->get_target_list_from_director()
+      client->get_validated_target_info()
 
     Components of the interface available to a Secondary client:
       register_ecu_manifest(vin, ecu_serial, nonce, signed_ecu_manifest)
@@ -187,7 +172,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
       update_exists_for_ecu(ecu_serial)
       get_image_fname_for_ecu(ecu_serial)
       get_full_metadata_archive_fname()
-      get_partial_metadata_fname()
+      get_partial_metadata_archive_fname()
       register_new_secondary(ecu_serial)
 
     Private methods:
@@ -198,6 +183,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     import uptane.clients.primary as primary
     p = primary.Primary(
         full_client_dir='/Users/s/w/uptane/temp_primarymetadata',
+        director_repo_name='director'
         vin='vin11111',
         ecu_serial='ecu00000',
         timeserver_public_key=<some key>)
@@ -227,7 +213,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     director_repo_name, # e.g. 'director'; value must appear in pinning file
     vin,              # 'vin11111'
     ecu_serial,       # 'ecu00000'
-    primary_key,
+    ecu_key,
     time,
     timeserver_public_key,
     my_secondaries=None):
@@ -246,7 +232,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
 
       ecu_serial            See class docstring above.
 
-      primary_key           See class docstring above.
+      ecu_key               See class docstring above.
 
       timeserver_public_key See class docstring above.
 
@@ -255,7 +241,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
       time
         An initial time to set the Primary's "clock" to, conforming to
         tuf.formats.ISO8601_DATETIME_SCHEMA.
-
 
     <Exceptions>
 
@@ -277,23 +262,17 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     uptane.formats.VIN_SCHEMA.check_match(vin)
     uptane.formats.ECU_SERIAL_SCHEMA.check_match(ecu_serial)
     tuf.formats.ANYKEY_SCHEMA.check_match(timeserver_public_key)
-    tuf.formats.ANYKEY_SCHEMA.check_match(primary_key)
-    # TODO: Should also check that primary_key is a private key, not a
+    tuf.formats.ANYKEY_SCHEMA.check_match(ecu_key)
+    # TODO: Should also check that ecu_key is a private key, not a
     # public key.
 
-    self.vin = vin
-    self.ecu_serial = ecu_serial
-    self.full_client_dir = full_client_dir
-    # TODO: Consider removing time from [time] here and starting with an empty
-    #       list, or setting time to 0 to start by default.
-    self.all_valid_timeserver_times = [time]
-    self.all_valid_timeserver_attestations = []
-    self.timeserver_public_key = timeserver_public_key
-    self.primary_key = primary_key
+    super(Primary, self).__init__(full_client_dir, director_repo_name, vin,
+                     ecu_serial, ecu_key, time, timeserver_public_key)
+
+
     self.my_secondaries = my_secondaries
     if self.my_secondaries is None:
       self.my_secondaries = [] # (because must not use mutable as default value)
-    self.director_repo_name = director_repo_name
 
     self.temp_full_metadata_archive_fname = os.path.join(
         full_client_dir, 'metadata', 'temp_full_metadata_archive.zip')
@@ -301,12 +280,10 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
         full_client_dir, 'metadata', 'full_metadata_archive.zip')
 
     # TODO: Some of these assumptions are unseemly. Reconsider.
-    self.temp_partial_metadata_fname = os.path.join(
-        full_client_dir, 'metadata', 'temp_director_targets.' +
-        tuf.conf.METADATA_FORMAT)
-    self.distributable_partial_metadata_fname = os.path.join(
-        full_client_dir, 'metadata', 'director_targets.' +
-        tuf.conf.METADATA_FORMAT)
+    self.temp_partial_metadata_archive_fname = os.path.join(
+        full_client_dir, 'metadata', 'temp_partial_metadata_archive.zip')
+    self.distributable_partial_metadata_archive_fname = os.path.join(
+        full_client_dir, 'metadata', 'partial_metadata_archive.zip')
 
     # Initializations not directly related to arguments.
     self.nonces_to_send = []
@@ -317,169 +294,6 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     # by ECU serial and with value being a list of manifests from that ECU, to
     # support the case in which multiple manifests have come from that ECU.
     self.ecu_manifests = {}
-
-
-    # Create a TUF-TAP-4-compliant updater object. This will read pinning.json
-    # and create single-repository updaters within it to handle connections to
-    # each repository.
-    self.updater = tuf.client.updater.Updater('updater')
-
-    if director_repo_name not in self.updater.pinned_metadata['repositories']:
-      raise uptane.Error('Given name for the Director repository is not a '
-          'known repository, according to the pinned metadata from pinned.json')
-
-
-
-
-
-  def refresh_toplevel_metadata(self):
-    """
-    Refreshes client's metadata for the top-level roles:
-      root, targets, snapshot, and timestamp
-
-    See tuf.client.updater.Updater.refresh() for details, or the
-    Uptane Standard, section 5.4.4.2 (Full Verification).
-
-    # TODO: This function is duplicated in primary.py and secondary.py. It must
-    #       be moved to a general client.py as part of a fix to issue #14
-    #       (github.com/uptane/uptane/issues/14).
-     This can raise TUF update exceptions like
-      - tuf.ExpiredMetadataError:
-          if after attempts to update the Root metadata succeeded or failed,
-          whatever currently trusted Root metadata we ended up with was expired.
-      - tuf.NoWorkingMirrorError:
-          if we could not obtain and verify all necessary metadata
-    """
-
-    # Refresh the Director first, per the Uptane Standard.
-    self.updater.refresh(repo_name=self.director_repo_name)
-
-    # Now that we've dealt with the Director repository, deal with any and all
-    # other repositories, presumably Image Repositories.
-    for repository_name in self.updater.repositories:
-      if repository_name == self.director_repo_name:
-        continue
-
-      self.updater.refresh(repo_name=repository_name)
-
-
-
-
-
-  def get_target_list_from_director(self):
-    """
-    This method extracts the Director's instructions from the targets role in
-    the Director repository's metadata. These must still be validated against
-    the Image Repository in further calls.
-    """
-    # TODO: This will have to be changed (along with the functions that depend
-    # on this function's output) once multi-role delegations can yield multiple
-    # targetfile_info objects. (Currently, we only yield more than one at the
-    # multi-repository delegation level.)
-    directed_targets = self.updater.targets_of_role(
-        rolename='targets', repo_name=self.director_repo_name)
-
-    return directed_targets
-
-
-
-
-
-  def get_validated_target_info(self, target_filepath):
-    """
-    (Could be called: get Director's version of the fully validated target info)
-
-    <Purpose>
-
-      Returns trustworthy target information for the given target file
-      (specified by its file path), from the Director, validated against the
-      Image Repository (or whichever repositories are required per the
-      pinned.json file).
-
-      The returned information has been cleared according to the trust
-      requirements of the pinning file (pinned.json) that this client is
-      equipped with. Assuming typical pinned.json configuration for Uptane,
-      this means that there is a multi-repository delegation to [the Director
-      Repository plus the Image Repository]. The target file info received
-      within this method is that from all repositories in the multi-repository
-      delegation, and each is guaranteed to be identical to the others in all
-      respects (e.g. crytographic hash and length) except for the "custom"
-      metadata field, since the Director includes an additional piece of
-      information in the fileinfo: the ECU Serial to which the target file is
-      assigned.
-
-      This method returns only the Director's version of this target file info,
-      which includes that "custom" field with ECU Serial assignments.
-
-    <Returns>
-      Target file info compliant with tuf.formats.TARGETFILE_INFO_SCHEMA,
-
-
-    <Exceptions>
-
-      tuf.UnknownTargetError
-        if a given filepath is not listed by the consensus of Director and
-        Image Repository (or through whichever trusted path is specified by
-        this client's pinned.json file.) If info is returned, it will match
-        tuf.formats.TARGETFILE_SCHEMA and will have been validated by all
-        required parties.
-
-      tuf.NoWorkingMirrorError
-        will be raised by the updater.target() call here if we are unable to
-        validate reliable target info for the target file specified (if the
-        repositories do not agree, or we could not reach them, or so on).
-
-      uptane.Error
-        if the Director targets file has not provided information about the
-        given target_filepath, but target_filepath has nevertheless been
-        validated. This could happen if the map/pinning file for some reason
-        incorrectly set to not require metadata from the Director.
-
-    """
-    tuf.formats.RELPATH_SCHEMA.check_match(target_filepath)
-
-    validated_target_info = self.updater.target(
-        target_filepath, multi_custom=True)
-
-    # validated_target_info will now look something like this:
-    # {
-    #   'Director': {
-    #     filepath: 'django/django.1.9.3.tgz',
-    #     fileinfo: {hashes: ..., length: ..., custom: {'ecu_serial': 'ECU1010101'} } },
-    #   'ImageRepo': {
-    #     filepath: 'django/django.1.9.3.tgz',
-    #     fileinfo: {hashes: ..., length: ... } } }
-    # }
-
-    # We expect there to be an entry in the dict with key name equal to the
-    # name of the Director repository (specified in pinned.json).
-
-    if self.director_repo_name not in validated_target_info:
-      # TODO: Consider a different exception class. This seems more like an
-      # assert statement, though.... If this happens, something is wrong in
-      # code, or pinned.json is misconfigured (to allow target validation
-      # whereby the Director is not specified in some multi-repository
-      # delegations) or the value of director_repo_name passed to the
-      # initialization of this object was wrong. Those are the edge cases I can
-      # come up with that could cause this.
-
-      # If the Director repo specified as self.director_repo_name is not in
-      # pinned.json at all, we'd have thrown an error during __init__. If the
-      # repos couldn't provide validated target file info, we'd have caught an
-      # error earlier instead.
-
-      raise uptane.Error('Unexpected behavior: did not receive target info from'
-          ' Director repository (' + repr(self.director_repo_name) + ') for '
-          'a target (' + repr(target_filepath) + '). Is pinned.json configured '
-          'to allow some targets to validate without Director approval, or is'
-          'the wrong repository specified as the Director repository in the '
-          'initialization of this primary object?')
-
-    # Defensive coding: this should already have been checked.
-    tuf.formats.TARGETFILE_SCHEMA.check_match(
-        validated_target_info[self.director_repo_name])
-
-    return validated_target_info[self.director_repo_name]
 
 
 
@@ -510,22 +324,9 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
           are deposited by TUF that does not have an extension that befits a
           file of type tuf.conf.METADATA_FORMAT.
     """
-    log.debug('Refreshing top level metadata from all repositories.')
-    self.refresh_toplevel_metadata()
 
-    # Get the list of targets the director expects us to download and update to.
-    # Note that at this line, this target info is not yet validated with the
-    # Image Repository: that is done a few lines down.
+    # Get list of targets from the Director
     directed_targets = self.get_target_list_from_director()
-
-    if not directed_targets:
-      log.info('A correctly signed statement from the Director indicates that '
-          'this vehicle has NO updates to install.')
-    else:
-      log.info('A correctly signed statement from the Director indicates that '
-          'this vehicle has updates to install:' +
-          repr([targ['filepath'] for targ in directed_targets]))
-
 
     log.debug('Retrieving validated image file metadata from Image and '
         'Director Repositories.')
@@ -770,7 +571,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
 
 
 
-  def get_partial_metadata_fname(self):
+  def get_partial_metadata_archive_fname(self):
     """
     Returns the absolute-path filename of the Director's targets.json metadata
     file, necessary for performing partial validation of target files (as a
@@ -781,7 +582,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     file is completely written. If this Primary has never completed an update
     cycle, it will not exist yet.
     """
-    return self.distributable_partial_metadata_fname
+    return self.distributable_partial_metadata_archive_fname
 
 
 
@@ -895,13 +696,13 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
       # Convert to DER and sign, replacing the Python dictionary.
       signable_vehicle_manifest = asn1_codec.convert_signed_metadata_to_der(
           signable_vehicle_manifest, DATATYPE_VEHICLE_MANIFEST,
-          private_key=self.primary_key, resign=True)
+          private_key=self.ecu_key, resign=True)
 
     else:
       # If we're not using ASN.1, sign the Python dictionary in a JSON encoding.
       uptane.common.sign_signable(
           signable_vehicle_manifest,
-          [self.primary_key],
+          [self.ecu_key],
           DATATYPE_VEHICLE_MANIFEST)
 
       uptane.formats.SIGNABLE_VEHICLE_VERSION_MANIFEST_SCHEMA.check_match(
@@ -1135,32 +936,9 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
     conforms to uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.
     """
 
-    # If we're using DER format, convert the attestation into something
-    # comprehensible instead.
-    if tuf.conf.METADATA_FORMAT == 'der':
-      timeserver_attestation = asn1_codec.convert_signed_der_to_dersigned_json(
-          timeserver_attestation, DATATYPE_TIME_ATTESTATION)
-
-    # Check format.
-    uptane.formats.SIGNABLE_TIMESERVER_ATTESTATION_SCHEMA.check_match(
-        timeserver_attestation)
-
-
-    # Assume there's only one signature. This assumption is made for simplicity
-    # in this reference implementation. If the Timeserver needs to sign with
-    # multiple keys for some reason, that can be accomodated.
-    assert len(timeserver_attestation['signatures']) == 1
-
-    valid = uptane.common.verify_signature_over_metadata(
-        self.timeserver_public_key,
-        timeserver_attestation['signatures'][0],
-        timeserver_attestation['signed'],
-        DATATYPE_TIME_ATTESTATION)
-
-    if not valid:
-      raise tuf.BadSignatureError('Timeserver returned an invalid signature. '
-          'Time is questionable, so not saved. If you see this persistently, '
-          'it is possible that there is a Man in the Middle attack underway.')
+    # Verify the signature of the timeserver on the attestation. If not verified,
+    # it raises a BadSignatureError
+    timeserver_attestation = self.verify_timeserver_signature(timeserver_attestation)
 
     for nonce in self.nonces_sent:
       if nonce not in timeserver_attestation['signed']['nonces']:
@@ -1174,25 +952,8 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
             'persistently, it is possible that there is a Man in the Middle '
             'attack underway.')
 
-
-    # Extract actual time from the timeserver's signed attestation.
-    new_timeserver_time = timeserver_attestation['signed']['time']
-
-    # Make sure the format is understandable to us before saving the
-    # attestation and time.  Convert to a UNIX timestamp.
-    new_timeserver_time_unix = int(tuf.formats.datetime_to_unix_timestamp(
-        iso8601.parse_date(new_timeserver_time)))
-    tuf.formats.UNIX_TIMESTAMP_SCHEMA.check_match(new_timeserver_time_unix)
-
-    # Save validated time.
-    self.all_valid_timeserver_times.append(new_timeserver_time)
-
-    # Save the attestation itself as well, to provide to Secondaries (who need
-    # not trust us).
-    self.all_valid_timeserver_attestations.append(timeserver_attestation)
-
-    # Set the client's clock.  This will be used instead of system time by TUF.
-    tuf.conf.CLOCK_OVERRIDE = new_timeserver_time_unix
+    # Update the time of Primary with the time in attestation
+    self.update_verified_time(timeserver_attestation)
 
 
 
@@ -1207,7 +968,7 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
           a zip archive of all the metadata files, from all repositories,
           validated by this Primary, for use by Full Verification Secondaries.
 
-      - self.distributable_partial_metadata_fname
+      - self.distributable_partial_metadata_archive_fname
           the Director Targets role file alone, for use by Partial Verification
           Secondaries
 
@@ -1267,23 +1028,43 @@ class Primary(object): # Consider inheriting from Secondary and refactoring.
 
     # Copy the Director's targets file to a temp location for partial-verifying
     # Secondaries.
-    director_targets_file = os.path.join(
-        self.full_client_dir,
-        'metadata',
-        self.director_repo_name,
-        'current',
-        'targets.' + tuf.conf.METADATA_FORMAT)
-    if os.path.exists(self.temp_partial_metadata_fname):
-      os.remove(self.temp_partial_metadata_fname)
-    shutil.copyfile(director_targets_file, self.temp_partial_metadata_fname)
+    with zipfile.ZipFile(self.temp_partial_metadata_archive_fname, 'w') \
+        as archive:
 
+      # Need 'target' metadata from only director repo
+      repo_name = self.director_repo_name
+      # Construct path to "current" metadata directory for that repository in
+      # the client metadata directory, relative to Uptane working directory.
+      abs_repo_dir = os.path.join(metadata_base_dir, repo_name, 'current')
+
+      # Archive only 'targets' metadat file for partial verification
+      role_fname = 'targets.' + tuf.conf.METADATA_FORMAT
+      # Reconstruct file path relative to Uptane working directory.
+      role_abs_fname = os.path.join(abs_repo_dir, role_fname)
+
+      # Make sure it's the right type of file. Should be a file, not a
+      # directory. Symlinks are OK. Should end in an extension matching
+      # tuf.conf.METADATA_FORMAT (presumably .json or .der, depending on
+      # that setting).
+      if not os.path.isfile(role_abs_fname) or not role_abs_fname.endswith(
+          '.' + tuf.conf.METADATA_FORMAT):
+        # Consider special error type.
+        raise uptane.Error('Unexpected file type in a metadata '
+            'directory: ' + repr(role_abs_fname) + ' Expecting only ' +
+            tuf.conf.METADATA_FORMAT + 'files.')
+
+      # Write the file to the archive, adjusting the path in the archive so
+      # that when expanded, it resembles repository structure rather than
+      # a client directory structure.
+      archive.write(role_abs_fname,
+                    os.path.join(repo_dir, 'metadata', role_fname))
 
     # Now move both Full and Partial metadata files into place. For each file,
     # this happens atomically on POSIX-compliant systems and replaces any
     # existing file.
     os.rename(
-        self.temp_partial_metadata_fname,
-        self.distributable_partial_metadata_fname)
+        self.temp_partial_metadata_archive_fname,
+        self.distributable_partial_metadata_archive_fname)
     os.rename(
         self.temp_full_metadata_archive_fname,
         self.distributable_full_metadata_archive_fname)
