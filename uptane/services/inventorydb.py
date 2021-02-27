@@ -353,6 +353,19 @@ def register_vehicle(vin, primary_ecu_serial=None, overwrite=True):
 
 
 
+def deregister_vehicle(vin):
+
+  _check_registration_is_sane(vin)
+  check_vin_registered(vin)
+
+  #If no error is found, delete from dictionaries
+  ecus_by_vin.pop(vin)
+  vehicle_manifests.pop(vin)
+  primary_ecus_by_vin.pop(vin)
+
+
+
+
 
 def check_vin_registered(vin):
 

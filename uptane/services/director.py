@@ -43,6 +43,7 @@ from uptane import GREEN, RED, YELLOW, ENDCOLORS
 
 import os
 import hashlib
+import shutil
 
 from uptane.encoding.asn1_codec import DATATYPE_TIME_ATTESTATION
 from uptane.encoding.asn1_codec import DATATYPE_ECU_MANIFEST
@@ -464,6 +465,16 @@ class Director:
 
 
 
+  def remove_vehicle(self, vin):
+
+      inventory.deregister_vehicle(vin)
+
+      self.delete_director_repo_for_vehicle(vin)
+
+
+
+
+
   def create_director_repo_for_vehicle(self, vin):
     """
     Creates a separate repository object for a given vehicle identifier.
@@ -521,6 +532,24 @@ class Director:
     this_repo.timestamp.load_signing_key(self.key_dirtime_pri)
     this_repo.snapshot.load_signing_key(self.key_dirsnap_pri)
     this_repo.targets.load_signing_key(self.key_dirtarg_pri)
+
+
+
+
+
+
+  def delete_director_repo_for_vehicle(self, vin):
+    uptane.formats.VIN_SCHEMA.check_match(vin)
+    os.chdir(self.director_repos_dir)
+
+    vin = uptane.common.scrub_filename(vin, self.director_repos_dir)
+    vin = os.path.relpath(vin, self.director_repos_dir)
+
+    existing_vehicle_repo = self.vehicle_repositories.get(vin)
+
+    if existing_vehicle_repo:
+      shutil.rmtree(existing_vehicle_repo.repository_name)
+      self.vehicle_repositories.pop(vin)
 
 
 
